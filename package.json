@@ -4,6 +4,15 @@
   "description": "Alpine.js IntelliSense, syntax highlighting, and tooling for VS Code",
   "version": "1.0.0",
   "publisher": "connorontheweb",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ConnorOnTheWeb/alpinejs-tools"
+  },
+  "bugs": {
+    "url": "https://github.com/ConnorOnTheWeb/alpinejs-tools/issues"
+  },
+  "homepage": "https://github.com/ConnorOnTheWeb/alpinejs-tools#readme",
   "engines": {
     "vscode": "^1.118.0"
   },
