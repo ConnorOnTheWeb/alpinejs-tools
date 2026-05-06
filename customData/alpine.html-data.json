@@ -1,0 +1,131 @@
+{
+  "version": 1.1,
+  "globalAttributes": [
+    {
+      "name": "x-data",
+      "description": "Declares a new Alpine component and defines its reactive data as a JavaScript object. All child elements have access to the properties defined here.",
+      "references": [
+        { "name": "Alpine.js Docs — x-data", "url": "https://alpinejs.dev/directives/data" }
+      ]
+    },
+    {
+      "name": "x-init",
+      "description": "Runs a JavaScript expression once when Alpine initialises the component. Use it for setup logic that should fire before the component is interactive.",
+      "references": [
+        { "name": "Alpine.js Docs — x-init", "url": "https://alpinejs.dev/directives/init" }
+      ]
+    },
+    {
+      "name": "x-show",
+      "description": "Toggles the visibility of an element by setting `display: none` based on the truthiness of the expression. Unlike x-if, the element stays in the DOM.",
+      "references": [
+        { "name": "Alpine.js Docs — x-show", "url": "https://alpinejs.dev/directives/show" }
+      ]
+    },
+    {
+      "name": "x-bind",
+      "description": "Dynamically binds an HTML attribute (or a set of attributes when passed an object) to a JavaScript expression. The `:attr` shorthand is equivalent to `x-bind:attr`.",
+      "references": [
+        { "name": "Alpine.js Docs — x-bind", "url": "https://alpinejs.dev/directives/bind" }
+      ]
+    },
+    {
+      "name": "x-on",
+      "description": "Attaches a DOM event listener that executes a JavaScript expression when the event fires. The `@event` shorthand is equivalent to `x-on:event`.",
+      "references": [
+        { "name": "Alpine.js Docs — x-on", "url": "https://alpinejs.dev/directives/on" }
+      ]
+    },
+    {
+      "name": "x-text",
+      "description": "Sets the `textContent` of an element to the result of the expression, keeping it in sync as reactive data changes.",
+      "references": [
+        { "name": "Alpine.js Docs — x-text", "url": "https://alpinejs.dev/directives/text" }
+      ]
+    },
+    {
+      "name": "x-html",
+      "description": "Sets the `innerHTML` of an element to the result of the expression. Only use with trusted content — never with user-supplied input.",
+      "references": [
+        { "name": "Alpine.js Docs — x-html", "url": "https://alpinejs.dev/directives/html" }
+      ]
+    },
+    {
+      "name": "x-model",
+      "description": "Creates a two-way binding between an input element's value and a piece of Alpine data, keeping both in sync automatically.",
+      "references": [
+        { "name": "Alpine.js Docs — x-model", "url": "https://alpinejs.dev/directives/model" }
+      ]
+    },
+    {
+      "name": "x-modelable",
+      "description": "Exposes a component's internal data property as a bindable value so a parent can use `x-model` to sync with it.",
+      "references": [
+        { "name": "Alpine.js Docs — x-modelable", "url": "https://alpinejs.dev/directives/modelable" }
+      ]
+    },
+    {
+      "name": "x-for",
+      "description": "Repeats a `<template>` element's content for each item in an iterable, using the syntax `item in items`. Must be placed on a `<template>` tag.",
+      "references": [
+        { "name": "Alpine.js Docs — x-for", "url": "https://alpinejs.dev/directives/for" }
+      ]
+    },
+    {
+      "name": "x-transition",
+      "description": "Applies CSS transition classes at each stage of an element entering or leaving the DOM, enabling smooth show/hide animations with minimal markup.",
+      "references": [
+        { "name": "Alpine.js Docs — x-transition", "url": "https://alpinejs.dev/directives/transition" }
+      ]
+    },
+    {
+      "name": "x-effect",
+      "description": "Evaluates an expression reactively — it re-runs automatically any time the reactive data it reads changes, without needing an event.",
+      "references": [
+        { "name": "Alpine.js Docs — x-effect", "url": "https://alpinejs.dev/directives/effect" }
+      ]
+    },
+    {
+      "name": "x-ignore",
+      "description": "Prevents Alpine from initialising or touching an element and all of its children. Useful for embedding third-party widgets inside Alpine components.",
+      "references": [
+        { "name": "Alpine.js Docs — x-ignore", "url": "https://alpinejs.dev/directives/ignore" }
+      ]
+    },
+    {
+      "name": "x-ref",
+      "description": "Registers a reference to a DOM element under the given name, making it accessible as `$refs.name` anywhere in the component.",
+      "references": [
+        { "name": "Alpine.js Docs — x-ref", "url": "https://alpinejs.dev/directives/ref" }
+      ]
+    },
+    {
+      "name": "x-cloak",
+      "description": "Remains on the element until Alpine has fully initialised, allowing you to hide un-initialised markup with `[x-cloak] { display: none }` in your CSS.",
+      "references": [
+        { "name": "Alpine.js Docs — x-cloak", "url": "https://alpinejs.dev/directives/cloak" }
+      ]
+    },
+    {
+      "name": "x-teleport",
+      "description": "Moves the content of a `<template>` element to another part of the DOM (matching the given selector) while keeping it reactive within the source component.",
+      "references": [
+        { "name": "Alpine.js Docs — x-teleport", "url": "https://alpinejs.dev/directives/teleport" }
+      ]
+    },
+    {
+      "name": "x-if",
+      "description": "Conditionally adds or removes a `<template>` element's content from the DOM entirely based on the truthiness of the expression. Must be placed on a `<template>` tag.",
+      "references": [
+        { "name": "Alpine.js Docs — x-if", "url": "https://alpinejs.dev/directives/if" }
+      ]
+    },
+    {
+      "name": "x-id",
+      "description": "Declares a list of ID namespaces scoped to the component, used with the `$id()` magic to generate unique, incrementing IDs for accessible form controls.",
+      "references": [
+        { "name": "Alpine.js Docs — x-id", "url": "https://alpinejs.dev/directives/id" }
+      ]
+    }
+  ]
+}

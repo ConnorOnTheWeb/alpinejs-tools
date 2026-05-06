@@ -1,0 +1,19 @@
+# Build output
+dist/
+out/
+
+# Dependencies
+node_modules/
+
+# Test artefacts
+.vscode-test/
+
+# Packaged extension
+*.vsix
+
+# macOS
+.DS_Store
+
+# Editor local settings (keep .vscode/ tracked for shared launch/tasks config)
+.vscode/settings.json
+vsc-extension-quickstart.md

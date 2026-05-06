@@ -1,0 +1,190 @@
+{
+  "Alpine x-data": {
+    "prefix": "x-data",
+    "body": "x-data=\"{ $1 }\"$0",
+    "description": "Declare Alpine component data"
+  },
+  "Alpine x-init": {
+    "prefix": "x-init",
+    "body": "x-init=\"$1\"$0",
+    "description": "Run expression on component initialisation"
+  },
+  "Alpine x-show": {
+    "prefix": "x-show",
+    "body": "x-show=\"$1\"$0",
+    "description": "Toggle element visibility"
+  },
+  "Alpine x-bind": {
+    "prefix": "x-bind",
+    "body": "x-bind:${1:attr}=\"$2\"$0",
+    "description": "Dynamically bind an HTML attribute"
+  },
+  "Alpine x-on": {
+    "prefix": "x-on",
+    "body": "x-on:${1:event}=\"$2\"$0",
+    "description": "Attach a DOM event listener"
+  },
+  "Alpine x-text": {
+    "prefix": "x-text",
+    "body": "x-text=\"$1\"$0",
+    "description": "Set element text content reactively"
+  },
+  "Alpine x-html": {
+    "prefix": "x-html",
+    "body": "x-html=\"$1\"$0",
+    "description": "Set element innerHTML reactively"
+  },
+  "Alpine x-model": {
+    "prefix": "x-model",
+    "body": "x-model=\"$1\"$0",
+    "description": "Two-way bind input to data"
+  },
+  "Alpine x-for (attribute)": {
+    "prefix": "x-for",
+    "body": "x-for=\"${1:item} in ${2:items}\" :key=\"${3:item.id}\"$0",
+    "description": "Loop over array (inline attribute)"
+  },
+  "Alpine x-transition": {
+    "prefix": "x-transition",
+    "body": "x-transition$0",
+    "description": "Add enter/leave CSS transitions"
+  },
+  "Alpine x-effect": {
+    "prefix": "x-effect",
+    "body": "x-effect=\"$1\"$0",
+    "description": "Reactive side-effect expression"
+  },
+  "Alpine x-ref": {
+    "prefix": "x-ref",
+    "body": "x-ref=\"${1:name}\"$0",
+    "description": "Create a named DOM reference"
+  },
+  "Alpine x-if (attribute)": {
+    "prefix": "x-if",
+    "body": "x-if=\"$1\"$0",
+    "description": "Conditional render (attribute, use on <template>)"
+  },
+  "Alpine x-teleport": {
+    "prefix": "x-teleport",
+    "body": "x-teleport=\"${1:#target}\"$0",
+    "description": "Teleport template content to another element"
+  },
+  "Alpine x-id": {
+    "prefix": "x-id",
+    "body": "x-id=\"['${1:name}']\"$0",
+    "description": "Scope $id() namespace to this component"
+  },
+  "Alpine template x-for (block)": {
+    "prefix": "template-for",
+    "body": [
+      "<template x-for=\"${1:item} in ${2:items}\" :key=\"${3:item.id}\">",
+      "\t<div>$0</div>",
+      "</template>"
+    ],
+    "description": "Full <template x-for> block"
+  },
+  "Alpine template x-if (block)": {
+    "prefix": "template-if",
+    "body": [
+      "<template x-if=\"${1:condition}\">",
+      "\t<div>$0</div>",
+      "</template>"
+    ],
+    "description": "Full <template x-if> block"
+  },
+  "Alpine.data()": {
+    "prefix": "alpine-data",
+    "body": [
+      "Alpine.data('${1:componentName}', () => ({",
+      "\t$2",
+      "",
+      "\tinit() {",
+      "\t\t$0",
+      "\t},",
+      "}))"
+    ],
+    "description": "Register an Alpine.data() reusable component"
+  },
+  "Alpine.store()": {
+    "prefix": "alpine-store",
+    "body": [
+      "Alpine.store('${1:storeName}', {",
+      "\t$0",
+      "})"
+    ],
+    "description": "Register a global Alpine.store()"
+  },
+  "Alpine $el": {
+    "prefix": "$el",
+    "body": "\\$el",
+    "description": "Alpine magic: root DOM element of the component"
+  },
+  "Alpine $refs": {
+    "prefix": "$refs",
+    "body": "\\$refs.${1:name}",
+    "description": "Alpine magic: access an x-ref element by name"
+  },
+  "Alpine $store": {
+    "prefix": "$store",
+    "body": "\\$store.${1:storeName}",
+    "description": "Alpine magic: access a global Alpine store"
+  },
+  "Alpine $watch": {
+    "prefix": "$watch",
+    "body": [
+      "\\$watch('${1:property}', (value) => {",
+      "\t$0",
+      "})"
+    ],
+    "description": "Alpine magic: watch a property for changes"
+  },
+  "Alpine $dispatch": {
+    "prefix": "$dispatch",
+    "body": "\\$dispatch('${1:event}'${2:, { $3 }})",
+    "description": "Alpine magic: dispatch a custom DOM event"
+  },
+  "Alpine $nextTick": {
+    "prefix": "$nextTick",
+    "body": [
+      "\\$nextTick(() => {",
+      "\t$0",
+      "})"
+    ],
+    "description": "Alpine magic: run callback after DOM update"
+  },
+  "Alpine modifier .prevent": {
+    "prefix": ".prevent",
+    "body": ".prevent",
+    "description": "Modifier: calls event.preventDefault()"
+  },
+  "Alpine modifier .stop": {
+    "prefix": ".stop",
+    "body": ".stop",
+    "description": "Modifier: calls event.stopPropagation()"
+  },
+  "Alpine modifier .debounce": {
+    "prefix": ".debounce",
+    "body": ".debounce.${1:250}ms",
+    "description": "Modifier: debounce the event handler"
+  },
+  "Alpine modifier .throttle": {
+    "prefix": ".throttle",
+    "body": ".throttle.${1:250}ms",
+    "description": "Modifier: throttle the event handler"
+  },
+  "Alpine modifier .once": {
+    "prefix": ".once",
+    "body": ".once",
+    "description": "Modifier: fire handler only once"
+  },
+  "Alpine modifier .window": {
+    "prefix": ".window",
+    "body": ".window",
+    "description": "Modifier: listen on window object instead"
+  },
+  "Alpine modifier .outside": {
+    "prefix": ".outside",
+    "body": ".outside",
+    "description": "Modifier: fire when click occurs outside element"
+  }
+}
