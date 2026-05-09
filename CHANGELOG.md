@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.1] — 2026-05-09
+
+### Fixed
+
+- **Blade snippets missing** — `blade` was omitted from the snippet contribution points in `package.json`, so Alpine snippets never appeared in Blade template files despite Blade being a fully supported language.
+
+- **"Did you mean" hint wrong for plugin directive typos** — the suggestion search only covered core directives, causing incorrect or absent hints for plugin directive typos (e.g. `x-anch` produced no suggestion instead of `x-anchor`; `x-collaps` suggested `x-cloak` instead of `x-collapse`). The search now covers both core and plugin directives and picks the shortest-distance candidate using a 2-character shared-prefix filter to avoid false matches.
+
+---
+
 ## [1.3.0] — 2026-05-09
 
 ### Added

@@ -63,13 +63,22 @@ function buildDiagnostic(
 	const end = document.positionAt(match.index + match[0].length);
 	const range = new vscode.Range(start, end);
 
-	const closest = [...CORE_DIRECTIVES].find(d => {
-		// Simple Levenshtein-1 check: same first letter, length within 2
-		return (
-			d[0] === base[0] &&
-			Math.abs(d.length - base.length) <= 2
-		);
-	});
+	// Search both core and plugin directives; prefer shortest edit distance.
+	// Require at least a 2-character shared prefix (1-char for length-1 bases)
+	// to avoid false positives like x-modl → x-mask instead of x-model.
+	const ALL_DIRECTIVES = [...CORE_DIRECTIVES, ...PLUGIN_DIRECTIVES];
+	const prefixLen = Math.min(base.length, 2);
+	const basePrefix = base.slice(0, prefixLen);
+	let closest: string | undefined;
+	let bestDist = Infinity;
+	for (const d of ALL_DIRECTIVES) {
+		if (!d.startsWith(basePrefix)) { continue; }
+		const dist = Math.abs(d.length - base.length);
+		if (dist <= 2 && dist < bestDist) {
+			closest = d;
+			bestDist = dist;
+		}
+	}
 
 	const hint = closest
 		? ` Did you mean \`x-${closest}\`?`
