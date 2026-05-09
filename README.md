@@ -48,6 +48,17 @@ Type `.` after any Alpine directive name to get the valid modifiers for that dir
 
 Already-applied modifiers in a chain are filtered out automatically.
 
+### Unknown directive diagnostics
+
+Any `x-*` attribute that isn't a recognised Alpine core or plugin directive is underlined with a Warning. A "did you mean" hint is shown when a close match exists.
+
+- Core directives (`x-data`, `x-show`, `x-model`, … all 18) and official plugin directives are never flagged.
+- Diagnostics are debounced 500 ms and cleared as you type.
+
+### Plugin directive completions
+
+`x-intersect`, `x-collapse`, `x-mask`, `x-sort`, and `x-anchor` now appear in VS Code's HTML attribute IntelliSense alongside the core directives, with hover descriptions and links to each plugin's documentation.
+
 ### Directive value completions
 
 Inside `x-data="…"` — suggests `Alpine.data('name', ...)` component names from the workspace.

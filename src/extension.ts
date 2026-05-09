@@ -8,6 +8,7 @@ import {
 	getXRefNames,
 	getXDataProps,
 } from './workspaceScanner';
+import { createAlpineDiagnosticProvider } from './diagnosticProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -205,6 +206,9 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	// Kick off workspace scan (non-blocking — results fill the cache async)
 	void initWorkspaceScanner(context);
+
+	// ── 0. Diagnostics — unknown Alpine directives ─────────────────────────────
+	createAlpineDiagnosticProvider(context);
 
 	// ── 1. Hover — directives and magic properties ─────────────────────────────
 	const hoverProvider = vscode.languages.registerHoverProvider(

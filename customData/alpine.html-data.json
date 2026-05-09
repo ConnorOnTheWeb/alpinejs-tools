@@ -126,6 +126,41 @@
       "references": [
         { "name": "Alpine.js Docs — x-id", "url": "https://alpinejs.dev/directives/id" }
       ]
+    },
+    {
+      "name": "x-intersect",
+      "description": "**Requires `@alpinejs/intersect` plugin.** Executes expressions when the element enters (`x-intersect`) or leaves (`x-intersect.leave`) the browser viewport using IntersectionObserver. Supports `.full`, `.half`, `.threshold-{n}` and `.margin-{n}` modifiers.",
+      "references": [
+        { "name": "Alpine.js Docs — x-intersect", "url": "https://alpinejs.dev/plugins/intersect" }
+      ]
+    },
+    {
+      "name": "x-collapse",
+      "description": "**Requires `@alpinejs/collapse` plugin.** Animates an element's height between 0 and its natural height when it is shown or hidden with `x-show`. Replaces the need for CSS transitions on height.",
+      "references": [
+        { "name": "Alpine.js Docs — x-collapse", "url": "https://alpinejs.dev/plugins/collapse" }
+      ]
+    },
+    {
+      "name": "x-mask",
+      "description": "**Requires `@alpinejs/mask` plugin.** Enforces an input mask pattern on a text field (e.g. phone numbers, dates, credit cards). The mask is defined as a string like `(999) 999-9999` where `9` matches any digit.",
+      "references": [
+        { "name": "Alpine.js Docs — x-mask", "url": "https://alpinejs.dev/plugins/mask" }
+      ]
+    },
+    {
+      "name": "x-sort",
+      "description": "**Requires `@alpinejs/sort` plugin.** Makes child elements drag-and-drop sortable. Add `x-sort:item` to each sortable child and provide an `x-sort` handler that receives the item's new sort order.",
+      "references": [
+        { "name": "Alpine.js Docs — x-sort", "url": "https://alpinejs.dev/plugins/sort" }
+      ]
+    },
+    {
+      "name": "x-anchor",
+      "description": "**Requires `@alpinejs/anchor` plugin.** Anchors an element's position to another element, keeping it visually attached (like a tooltip or dropdown) using `x-anchor.bottom-start=\"$refs.button\"` syntax.",
+      "references": [
+        { "name": "Alpine.js Docs — x-anchor", "url": "https://alpinejs.dev/plugins/anchor" }
+      ]
     }
   ]
 }
