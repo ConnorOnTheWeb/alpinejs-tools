@@ -13,7 +13,6 @@ import * as vscode from 'vscode';
 
 // ─── Regexes ──────────────────────────────────────────────────────────────────
 
-const ALPINE_DATA_RE = /Alpine\.data\s*\(\s*['"](\w+)['"]/g;
 const ALPINE_STORE_RE = /Alpine\.store\s*\(\s*['"](\w+)['"]/g;
 const XREF_ATTR_RE = /x-ref=["'](\w+)["']/g;
 // Match x-data attribute value (double- or single-quoted, single-line)
@@ -21,8 +20,15 @@ const XDATA_ATTR_RE = /x-data=(?:"([^"]*)"|'([^']*)')/g;
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 
+/** Source location of an `Alpine.data('name', ...)` call. */
+export interface DataLocation {
+	name: string;
+	line: number;
+	char: number;
+}
+
 interface CacheEntry {
-	dataNames: string[];
+	dataLocations: DataLocation[];
 	storeNames: string[];
 }
 
@@ -40,13 +46,31 @@ function extractMatches(text: string, re: RegExp): string[] {
 	return [...new Set(names)];
 }
 
+/**
+ * Extracts `Alpine.data('name', ...)` calls together with their source
+ * positions so that a DefinitionProvider can jump to the registration site.
+ */
+function extractDataLocations(text: string): DataLocation[] {
+	const locs: DataLocation[] = [];
+	const re = /Alpine\.data\s*\(\s*['"](\w+)['"]/g;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(text)) !== null) {
+		const before = text.slice(0, m.index);
+		const line = (before.match(/\n/g) ?? []).length;
+		const lastNl = before.lastIndexOf('\n');
+		const char = m.index - (lastNl + 1);
+		locs.push({ name: m[1], line, char });
+	}
+	return locs;
+}
+
 async function scanFile(uri: vscode.Uri): Promise<void> {
 	try {
 		const bytes = await vscode.workspace.fs.readFile(uri);
 		const text = Buffer.from(bytes).toString('utf8');
-		const dataNames = extractMatches(text, ALPINE_DATA_RE);
+		const dataLocations = extractDataLocations(text);
 		const storeNames = extractMatches(text, ALPINE_STORE_RE);
-		fileCache.set(uri.toString(), { dataNames, storeNames });
+		fileCache.set(uri.toString(), { dataLocations, storeNames });
 	} catch {
 		fileCache.delete(uri.toString());
 	}
@@ -56,11 +80,34 @@ async function scanFile(uri: vscode.Uri): Promise<void> {
 
 /** All `Alpine.data('name', ...)` registration names found in the workspace. */
 export function getAlpineDataNames(): string[] {
-	const all: string[] = [];
+	const all = new Set<string>();
 	for (const entry of fileCache.values()) {
-		all.push(...entry.dataNames);
+		for (const loc of entry.dataLocations) {
+			all.add(loc.name);
+		}
 	}
-	return [...new Set(all)].sort();
+	return [...all].sort();
+}
+
+/**
+ * All source locations where `Alpine.data('name', ...)` is called for the
+ * given component name. Used by the DefinitionProvider.
+ */
+export function getAlpineDataLocations(name: string): vscode.Location[] {
+	const locs: vscode.Location[] = [];
+	for (const [uriStr, entry] of fileCache.entries()) {
+		for (const loc of entry.dataLocations) {
+			if (loc.name === name) {
+				locs.push(
+					new vscode.Location(
+						vscode.Uri.parse(uriStr),
+						new vscode.Position(loc.line, loc.char),
+					),
+				);
+			}
+		}
+	}
+	return locs;
 }
 
 /** All `Alpine.store('name', ...)` registration names found in the workspace. */

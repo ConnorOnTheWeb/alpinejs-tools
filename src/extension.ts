@@ -4,11 +4,13 @@ import * as fs from 'fs';
 import {
 	initWorkspaceScanner,
 	getAlpineDataNames,
+	getAlpineDataLocations,
 	getAlpineStoreNames,
 	getXRefNames,
 	getXDataProps,
 } from './workspaceScanner';
 import { createAlpineDiagnosticProvider } from './diagnosticProvider';
+import { createAlpineCodeActionProvider } from './codeActionProvider';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -504,6 +506,47 @@ export function activate(context: vscode.ExtensionContext): void {
 		// No explicit trigger — fires automatically in attribute value context
 	);
 	context.subscriptions.push(directiveValueProvider);
+
+	// ── 5. Code actions — quick fix for unknown directives ────────────────────
+	createAlpineCodeActionProvider(context);
+
+	// ── 6. Definition — x-data="componentName" → Alpine.data('componentName')
+	const definitionProvider = vscode.languages.registerDefinitionProvider(
+		ALPINE_LANGUAGES.map(lang => ({ language: lang })),
+		{
+			provideDefinition(
+				document: vscode.TextDocument,
+				position: vscode.Position,
+			): vscode.Location[] | undefined {
+				const line = document.lineAt(position).text;
+				const col = position.character;
+
+				// Match x-data="value" or x-data='value' on the current line
+				const xDataRe = /x-data=(["'])([^"']*)\1/g;
+				let m: RegExpExecArray | null;
+				while ((m = xDataRe.exec(line)) !== null) {
+					// Only trigger when the cursor is inside the quoted value portion,
+					// not on the attribute name itself.
+					// m[0] = 'x-data="value"', m[1] = quote char, m[2] = value
+					const valueStart = m.index + 'x-data='.length + 1; // after opening quote
+					const valueEnd = valueStart + m[2].length;          // before closing quote
+					if (col < valueStart || col > valueEnd) { continue; }
+
+					const value = m[2].trim();
+					// Only trigger for plain component name references,
+					// not inline object literals or expressions.
+					if (!value || value.startsWith('{') || value.includes('(')) {
+						return undefined;
+					}
+
+					const locs = getAlpineDataLocations(value);
+					return locs.length ? locs : undefined;
+				}
+				return undefined;
+			},
+		},
+	);
+	context.subscriptions.push(definitionProvider);
 }
 
 export function deactivate(): void {

@@ -186,5 +186,50 @@
     "prefix": ".outside",
     "body": ".outside",
     "description": "Modifier: fire when click occurs outside element"
+  },
+  "Alpine x-intersect": {
+    "prefix": "x-intersect",
+    "body": "x-intersect=\"$1\"$0",
+    "description": "Trigger expression when element enters the viewport (requires @alpinejs/intersect)"
+  },
+  "Alpine x-intersect.enter": {
+    "prefix": "x-intersect.enter",
+    "body": "x-intersect.enter=\"$1\"$0",
+    "description": "Fire only when element enters the viewport (requires @alpinejs/intersect)"
+  },
+  "Alpine x-intersect.leave": {
+    "prefix": "x-intersect.leave",
+    "body": "x-intersect.leave=\"$1\"$0",
+    "description": "Fire only when element leaves the viewport (requires @alpinejs/intersect)"
+  },
+  "Alpine x-collapse": {
+    "prefix": "x-collapse",
+    "body": "x-collapse$0",
+    "description": "Animate element height collapse/expand (requires @alpinejs/collapse)"
+  },
+  "Alpine x-mask": {
+    "prefix": "x-mask",
+    "body": "x-mask=\"${1:999-999-9999}\"$0",
+    "description": "Apply a static input mask (requires @alpinejs/mask)"
+  },
+  "Alpine x-mask:dynamic": {
+    "prefix": "x-mask:dynamic",
+    "body": "x-mask:dynamic=\"$1\"$0",
+    "description": "Apply a dynamic input mask expression (requires @alpinejs/mask)"
+  },
+  "Alpine x-sort": {
+    "prefix": "x-sort",
+    "body": "x-sort=\"$1\"$0",
+    "description": "Make child elements drag-to-sort (requires @alpinejs/sort)"
+  },
+  "Alpine x-sort:handle": {
+    "prefix": "x-sort:handle",
+    "body": "x-sort:handle$0",
+    "description": "Mark child element as the drag handle (requires @alpinejs/sort)"
+  },
+  "Alpine x-anchor": {
+    "prefix": "x-anchor",
+    "body": "x-anchor.${1|bottom-start,bottom-end,top-start,top-end,left-start,right-start|}=\"\\$refs.${2:button}\"$0",
+    "description": "Anchor this element's position to another element (requires @alpinejs/anchor)"
   }
 }
