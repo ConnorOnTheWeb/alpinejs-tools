@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.2] — 2026-05-15
+
+### Fixed
+
+- **`ALL_DIRECTIVES` rebuilt on every diagnostic call** — the combined `[...CORE_DIRECTIVES, ...PLUGIN_DIRECTIVES]` array used for "did you mean" suggestions was constructed inside `buildDiagnostic`, allocating a new array for every unknown directive found in every document scan. Moved to a module-level constant.
+
+- **O(N×M) line counting in `extractDataLocations`** — for each `Alpine.data(...)` match, the previous code allocated a substring from the start of the file, ran `/\n/g` on it, then ran `lastIndexOf` — repeating work proportional to the match's position for every match. Replaced with an incremental `line`/`lineStart` accumulator that advances only from the previous match, making the total work O(N).
+
+- **`getAlpineStoreNames` used array spread then `new Set` to deduplicate** — entries were collected via `all.push(...entry.storeNames)` (a spread allocation per cached file) and then deduped. Now uses `Set.add()` directly during iteration, matching the pattern already used by `getAlpineDataNames`.
+
+---
+
 ## [1.3.1] — 2026-05-09
 
 ### Fixed

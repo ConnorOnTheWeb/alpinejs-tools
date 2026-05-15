@@ -54,12 +54,19 @@ function extractDataLocations(text: string): DataLocation[] {
 	const locs: DataLocation[] = [];
 	const re = /Alpine\.data\s*\(\s*['"](\w+)['"]/g;
 	let m: RegExpExecArray | null;
+	let prevIndex = 0;
+	let line = 0;
+	let lineStart = 0;
 	while ((m = re.exec(text)) !== null) {
-		const before = text.slice(0, m.index);
-		const line = (before.match(/\n/g) ?? []).length;
-		const lastNl = before.lastIndexOf('\n');
-		const char = m.index - (lastNl + 1);
-		locs.push({ name: m[1], line, char });
+		// Advance line/char counters from previous match position to current
+		for (let i = prevIndex; i < m.index; i++) {
+			if (text[i] === '\n') {
+				line++;
+				lineStart = i + 1;
+			}
+		}
+		prevIndex = m.index;
+		locs.push({ name: m[1], line, char: m.index - lineStart });
 	}
 	return locs;
 }
@@ -112,11 +119,13 @@ export function getAlpineDataLocations(name: string): vscode.Location[] {
 
 /** All `Alpine.store('name', ...)` registration names found in the workspace. */
 export function getAlpineStoreNames(): string[] {
-	const all: string[] = [];
+	const all = new Set<string>();
 	for (const entry of fileCache.values()) {
-		all.push(...entry.storeNames);
+		for (const name of entry.storeNames) {
+			all.add(name);
+		}
 	}
-	return [...new Set(all)].sort();
+	return [...all].sort();
 }
 
 /** All `x-ref="name"` values declared in the given document text. */

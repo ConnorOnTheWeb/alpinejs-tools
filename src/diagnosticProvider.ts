@@ -46,6 +46,9 @@ const PLUGIN_DIRECTIVES = new Set([
 // Stops at = > ' " or whitespace so the match covers only the attribute name.
 const ALPINE_DIRECTIVE_RE = /\bx-([\w][\w-]*(?:[:.][^\s=>'"]*)?)/g;
 
+/** Pre-built flat array of all valid directive base names for suggestion lookup. */
+const ALL_DIRECTIVES = [...CORE_DIRECTIVES, ...PLUGIN_DIRECTIVES];
+
 function getBaseDirective(raw: string): string {
 	// 'on:click.prevent' → 'on'
 	// 'transition.enter' → 'transition'
@@ -66,7 +69,6 @@ function buildDiagnostic(
 	// Search both core and plugin directives; prefer shortest edit distance.
 	// Require at least a 2-character shared prefix (1-char for length-1 bases)
 	// to avoid false positives like x-modl → x-mask instead of x-model.
-	const ALL_DIRECTIVES = [...CORE_DIRECTIVES, ...PLUGIN_DIRECTIVES];
 	const prefixLen = Math.min(base.length, 2);
 	const basePrefix = base.slice(0, prefixLen);
 	let closest: string | undefined;
