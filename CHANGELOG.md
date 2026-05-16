@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.3] — 2026-05-16
+
+### Changed
+
+- README: added VS Marketplace version, license, and TypeScript badges.
+
+---
+
 ## [1.3.2] — 2026-05-15
 
 ### Fixed

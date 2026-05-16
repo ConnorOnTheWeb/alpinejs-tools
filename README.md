@@ -2,6 +2,8 @@
 
 The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets — across HTML, EJS, PHP, Twig, Nunjucks, and Blade.
 
+[![VS Marketplace](https://vsmarketplacebadges.dev/version/connorontheweb.alpinejs-tools.svg)](https://marketplace.visualstudio.com/items?itemName=connorontheweb.alpinejs-tools) [![License](https://img.shields.io/github/license/connorontheweb/alpinejs-tools)](https://github.com/connorontheweb/alpinejs-tools/blob/main/LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
 ## Features
 
 ### JavaScript syntax highlighting inside Alpine directives

@@ -2,7 +2,7 @@
   "name": "alpinejs-tools",
   "displayName": "Alpine.js Tools",
   "description": "Alpine.js IntelliSense, syntax highlighting, and tooling for VS Code",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "publisher": "connorontheweb",
   "license": "MIT",
   "repository": {
