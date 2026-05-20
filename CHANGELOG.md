@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.4] — 2026-05-19
+
+### Changed
+
+- package.json engine version updated to support Open VSX and Cursor.
+
 ## [1.3.3] — 2026-05-16
 
 ### Changed
