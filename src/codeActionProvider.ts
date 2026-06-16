@@ -11,12 +11,11 @@
  */
 
 import * as vscode from 'vscode';
+import { ALPINE_LANGUAGES } from './constants';
 
 // Extracts the suggestion from a diagnostic message such as:
 //   "Unknown Alpine.js directive 'x-dat'. Did you mean `x-data`?"
 const DID_YOU_MEAN_RE = /Did you mean `(x-[\w-]+)`/;
-
-const ALPINE_LANGUAGES = ['html', 'ejs', 'php', 'twig', 'nunjucks', 'blade'];
 
 export function createAlpineCodeActionProvider(
 	context: vscode.ExtensionContext,

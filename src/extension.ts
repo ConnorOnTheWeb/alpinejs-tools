@@ -11,10 +11,9 @@ import {
 } from './workspaceScanner';
 import { createAlpineDiagnosticProvider } from './diagnosticProvider';
 import { createAlpineCodeActionProvider } from './codeActionProvider';
+import { ALPINE_LANGUAGES } from './constants';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-const ALPINE_LANGUAGES = ['html', 'ejs', 'php', 'twig', 'nunjucks', 'blade'];
 
 interface AlpineAttr {
 	name: string;

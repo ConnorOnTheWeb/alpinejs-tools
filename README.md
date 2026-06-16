@@ -1,6 +1,6 @@
 # Alpine.js Tools
 
-The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, and Blade.
+The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, and Jinja2.
 
 [![VS Marketplace](https://vsmarketplacebadges.dev/version/connorontheweb.alpinejs-tools.svg)](https://marketplace.visualstudio.com/items?itemName=connorontheweb.alpinejs-tools) [![License](https://img.shields.io/github/license/connorontheweb/alpinejs-tools)](https://github.com/connorontheweb/alpinejs-tools/blob/main/LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
@@ -37,7 +37,7 @@ Type `$` inside any Alpine expression to get completions for all Alpine magic pr
 
 After `$refs.` — completions list every `x-ref` name declared in the current file.
 
-After `$store.` — completions list every `Alpine.store('name', ...)` registration found in workspace JS/TS/HTML files (backed by a file-system watcher).
+After `$store.` — completions list every `Alpine.store('name', ...)` registration found in workspace JS/TS/HTML/Liquid/Jinja files (backed by a file-system watcher).
 
 ### Modifier completions
 
@@ -62,7 +62,7 @@ Any `x-*` attribute that isn't a recognised Alpine core or plugin directive is u
 
 ### Go to Definition for Alpine components
 
-Press **F12** (or Ctrl+Click) anywhere inside `x-data="componentName"` to jump directly to the `Alpine.data('componentName', ...)` registration in your workspace JS/TS files. Multiple registration sites are all shown. Inline object literals (`x-data="{ open: false }"`) are intentionally skipped.
+Press **F12** (or Ctrl+Click) anywhere inside `x-data="componentName"` to jump directly to the `Alpine.data('componentName', ...)` registration in your workspace JS/TS/HTML/Liquid/Jinja files. Multiple registration sites are all shown. Inline object literals (`x-data="{ open: false }"`) are intentionally skipped.
 
 ### Plugin directive completions
 
@@ -90,7 +90,7 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 ### Snippets
 
-41 snippets available in HTML, EJS, PHP, Twig, Nunjucks, and JavaScript:
+41 snippets available in HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja-HTML, and JavaScript:
 
 **Directive attributes** — `x-data`, `x-init`, `x-show`, `x-bind`, `x-on`, `x-text`, `x-html`, `x-model`, `x-for`, `x-transition`, `x-effect`, `x-ref`, `x-if`, `x-teleport`, `x-id`
 
@@ -106,7 +106,9 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 ## Supported languages
 
-`html` · `ejs` · `php` · `twig` · `nunjucks` · `blade`
+`html` · `ejs` · `php` · `twig` · `nunjucks` · `blade` · `liquid` · `jinja-html`
+
+Jinja2 templates that use the plain `.html` extension (the common Flask/Django case) are already covered by the `html` language support — no Jinja extension required for those files.
 
 ## Requirements
 

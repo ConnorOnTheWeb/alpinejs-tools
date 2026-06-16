@@ -172,9 +172,9 @@ export function getXDataProps(documentText: string, cursorOffset: number): strin
 export async function initWorkspaceScanner(
 	context: vscode.ExtensionContext,
 ): Promise<void> {
-	// Scan JS / TS / HTML template files — limit to 500 per glob to stay fast
+	// Scan JS / TS / HTML / Liquid / Jinja template files — limit to 500 per glob to stay fast
 	const exclude = '**/node_modules/**';
-	const globs = ['**/*.js', '**/*.ts', '**/*.mjs', '**/*.html'];
+	const globs = ['**/*.js', '**/*.ts', '**/*.mjs', '**/*.html', '**/*.liquid', '**/*.jinja', '**/*.jinja2', '**/*.j2'];
 	const uriLists = await Promise.all(
 		globs.map(g => vscode.workspace.findFiles(g, exclude, 500)),
 	);
@@ -182,7 +182,7 @@ export async function initWorkspaceScanner(
 
 	// Re-scan on create/change; evict on delete
 	const watcher = vscode.workspace.createFileSystemWatcher(
-		'**/*.{js,ts,mjs,html}',
+		'**/*.{js,ts,mjs,html,liquid,jinja,jinja2,j2}',
 	);
 	watcher.onDidChange(uri => { void scanFile(uri); });
 	watcher.onDidCreate(uri => { void scanFile(uri); });

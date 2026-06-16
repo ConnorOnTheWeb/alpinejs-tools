@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.4.0] — 2026-06-16
+
+### Added
+
+- **Liquid and Jinja2 language support** — hover documentation, magic property completions, modifier completions, directive-value completions, unknown-directive diagnostics, Quick Fix actions, Go to Definition, and snippets now work in `liquid` and `jinja-html` files, on par with the existing HTML/PHP/Twig/Blade support. Liquid support targets files opened with language id `liquid` (used by `Shopify.theme-check-vscode` and `panoply/vscode-liquid`). Jinja2 support targets `jinja-html` (used by `samuelcolvin.jinjahtml`); files kept as `html` language id via `wholroyd.jinja` are already covered by the existing `html` support.
+
+- **`Alpine.data()` / `Alpine.store()` registrations in Liquid and Jinja files** — the workspace scanner now indexes `**/*.liquid`, `**/*.jinja`, `**/*.jinja2`, and `**/*.j2` in addition to the existing JS/TS/HTML globs. Registrations found in those files become valid Go to Definition jump targets and appear in `$store.name` / `x-data="name"` completions.
+
+- **Generic template-delimiter passthrough in attribute values** — `{{ ... }}` and `{% ... %}` sequences inside Alpine attribute values (e.g. `x-data="{ open: {{ value }} }"`) are now captured as `meta.template-expression` before JavaScript tokenisation is applied, preventing mis-tokenisation of Liquid, Jinja2, Twig, and Nunjucks output expressions in directive values.
+
+- **Centralized language list** — all three language-list constants previously maintained independently in `extension.ts`, `diagnosticProvider.ts`, and `codeActionProvider.ts` are replaced by a single `ALPINE_LANGUAGES` export in `src/constants.ts`, imported everywhere.
+
+### Fixed
+
+- **Blade grammar injection not loading** — `text.blade.php` was present in the `injectionSelector` of the Alpine injection grammar (added in v1.1.0) but was missing from the `injectTo` field in `package.json`. VS Code uses `injectTo` to decide when to load the grammar package, so Alpine JS syntax highlighting inside attribute values was silently never activating in Blade files. Added `text.blade.php` to `injectTo`.
+
+- **Nunjucks grammar injection not wired** — `nunjucks` was listed as a supported language in activation events, providers, and snippets, but `text.html.nunjucks` was never added to `injectionSelector` or `injectTo`. Alpine JS syntax highlighting inside attribute values was silently never activating in Nunjucks files. Fixed by adding `text.html.nunjucks` to both.
+
+---
+
 ## [1.3.4] — 2026-05-19
 
 ### Changed

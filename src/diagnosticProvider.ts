@@ -17,6 +17,7 @@
  */
 
 import * as vscode from 'vscode';
+import { ALPINE_LANGUAGES_SET } from './constants';
 
 // ─── Known directive sets ─────────────────────────────────────────────────────
 
@@ -98,10 +99,6 @@ function buildDiagnostic(
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
-const ALPINE_LANGUAGES = new Set([
-	'html', 'ejs', 'php', 'twig', 'nunjucks', 'blade',
-]);
-
 const DEBOUNCE_MS = 500;
 
 export function createAlpineDiagnosticProvider(
@@ -113,7 +110,7 @@ export function createAlpineDiagnosticProvider(
 	const timers = new Map<string, NodeJS.Timeout>();
 
 	function diagnose(document: vscode.TextDocument): void {
-		if (!ALPINE_LANGUAGES.has(document.languageId)) { return; }
+		if (!ALPINE_LANGUAGES_SET.has(document.languageId)) { return; }
 
 		const text = document.getText();
 		const diagnostics: vscode.Diagnostic[] = [];
