@@ -44,8 +44,10 @@ const PLUGIN_DIRECTIVES = new Set([
 ]);
 
 // Matches `x-something`, `x-on:click`, `x-bind:class`, `x-transition.enter`
-// Stops at = > ' " or whitespace so the match covers only the attribute name.
-const ALPINE_DIRECTIVE_RE = /\bx-([\w][\w-]*(?:[:.][^\s=>'"]*)?)/g;
+// (?<=\s) requires whitespace before x- so mid-word occurrences like `translate-x-1/2`
+// are skipped. (?=[=\s>]|$) requires the directive to be followed by `=`, whitespace,
+// `>`, or end-of-string — ruling out class fragments like `x-1/2` (followed by `/`).
+const ALPINE_DIRECTIVE_RE = /(?<=\s)x-([\w][\w-]*(?:[:.][^\s=>'"]*)?)(?=[=\s>]|$)/g;
 
 /** Pre-built flat array of all valid directive base names for suggestion lookup. */
 const ALL_DIRECTIVES = [...CORE_DIRECTIVES, ...PLUGIN_DIRECTIVES];

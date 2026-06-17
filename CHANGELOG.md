@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1] — 2026-06-17
+
+### Fixed
+
+- **False-positive diagnostics on Tailwind/CSS class names containing `x-`** — the directive-detection regex used `\b` (word boundary) to anchor matches, which fires at any word/non-word transition including the hyphens in class names like `translate-x-1/2` and `x-1/2`. Both forms were falsely flagged as unknown Alpine directives. The regex now uses `(?<=\s)` (requires whitespace before `x-`) combined with `(?=[=\s>]|$)` (requires `=`, whitespace, `>`, or end-of-string after the directive name). Alpine attributes always satisfy both conditions; CSS class fragments like `x-1/2` and `x-auto` do not.
+
+---
+
 ## [1.4.0] — 2026-06-16
 
 ### Added
