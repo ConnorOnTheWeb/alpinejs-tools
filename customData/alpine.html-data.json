@@ -161,6 +161,13 @@
       "references": [
         { "name": "Alpine.js Docs — x-anchor", "url": "https://alpinejs.dev/plugins/anchor" }
       ]
+    },
+    {
+      "name": "x-trap",
+      "description": "**Requires `@alpinejs/focus` plugin.** Traps focus inside an element while the expression is true, restoring it to the previously focused element when it becomes false. Supports `.inert`, `.noscroll`, `.noreturn` and `.noautofocus` modifiers.",
+      "references": [
+        { "name": "Alpine.js Docs — x-trap", "url": "https://alpinejs.dev/plugins/focus" }
+      ]
     }
   ]
 }

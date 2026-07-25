@@ -85,6 +85,12 @@ const ALPINE_MAGICS: MagicDef[] = [
 		doc: 'Generate a unique, scoped ID string. Used with `x-id`.\n\n[Alpine.js Docs](https://alpinejs.dev/magics/id)',
 		insert: "\\$id('${1:name}')",
 	},
+	{
+		label: '$persist',
+		detail: '(defaultValue: any) => any',
+		doc: '**Requires `@alpinejs/persist` plugin.** Persists a data property to storage (`localStorage` by default) so it survives page reloads. Chain `.as(key)` for a custom storage key and `.using(storage)` for an alternative backend.\n\n[Alpine.js Docs](https://alpinejs.dev/plugins/persist)',
+		insert: '\\$persist(${1:value})',
+	},
 ];
 
 const MAGIC_MAP = new Map(ALPINE_MAGICS.map(m => [m.label, m]));

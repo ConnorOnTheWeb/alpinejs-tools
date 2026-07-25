@@ -37,10 +37,9 @@ const PLUGIN_DIRECTIVES = new Set([
 	'collapse',   // @alpinejs/collapse
 	'sort',       // @alpinejs/sort
 	'mask',       // @alpinejs/mask
-	'morph',      // @alpinejs/morph
-	'focus',      // @alpinejs/focus
-	'persist',    // @alpinejs/persist
+	'trap',       // @alpinejs/focus (directive is `x-trap`, not `x-focus`)
 	'anchor',     // @alpinejs/anchor
+	// @alpinejs/morph and @alpinejs/persist expose JS APIs, not directives ($persist is a magic property, handled in extension.ts).
 ]);
 
 // Matches `x-something`, `x-on:click`, `x-bind:class`, `x-transition.enter`

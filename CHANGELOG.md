@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0] — 2026-07-25
+
+### Added
+
+- **`$persist` magic property** — hover documentation and `$`-triggered completion for `$persist`, matching the existing support for `$el`, `$refs`, `$store`, etc. Includes a type signature and a docs link to the `@alpinejs/persist` plugin.
+
+### Fixed
+
+- **`x-trap` (the `@alpinejs/focus` plugin's directive) was flagged as an unknown directive** — the diagnostics allow-list keyed the entry by the plugin's package name (`focus`) instead of the directive it actually registers (`x-trap`), so any use of `x-trap` triggered a false-positive `unknown-directive` warning. The allow-list now keys on `trap`.
+- **`x-trap` was missing from HTML IntelliSense** — `customData/alpine.html-data.json` (which powers VS Code's built-in attribute completion and hover) never had an entry for it, so it didn't appear in autocomplete even once the diagnostic above was fixed. Added, with its `.inert`, `.noscroll`, `.noreturn`, and `.noautofocus` modifiers documented.
+- **`x-morph` and `x-persist` were incorrectly treated as valid directives** — neither `@alpinejs/morph` nor `@alpinejs/persist` registers an `x-*` directive (they expose `Alpine.morph()`/`Alpine.morphBetween()` and the `$persist` magic property respectively), so listing them in the diagnostics allow-list suppressed a warning that should have fired for a genuine mistake. Removed; both attributes are now correctly flagged as unknown.
+
+---
+
 ## [1.4.1] — 2026-06-17
 
 ### Fixed
