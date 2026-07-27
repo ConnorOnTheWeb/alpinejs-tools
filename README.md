@@ -28,7 +28,7 @@ Hover over any Alpine directive, shorthand, or magic property to see documentati
 - `x-data`, `x-show`, `x-model`, `x-for`, `x-if`, `x-transition` … all 18 directives
 - `@click` → shows `x-on` docs with a note that `@click` is shorthand for `x-on:click`
 - `:class` → shows `x-bind` docs with a note that `:class` is shorthand for `x-bind:class`
-- `$el`, `$refs`, `$store`, `$watch`, `$dispatch`, `$nextTick`, `$root`, `$data`, `$id`, `$persist` → type signature and docs link
+- `$el`, `$refs`, `$store`, `$watch`, `$dispatch`, `$nextTick`, `$root`, `$data`, `$id`, `$persist`, `$event` → type signature and docs link
 - Dot-modifiers are handled: hovering `x-model.number` shows `x-model` docs
 
 ### Magic property completions
@@ -88,6 +88,7 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 | `$data` | `$data` |
 | `$id` | `$id('‹name›')` |
 | `$persist` | `$persist(‹value›)` |
+| `$event` | `$event` |
 
 ### Snippets
 

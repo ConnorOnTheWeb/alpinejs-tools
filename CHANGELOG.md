@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.0] — 2026-07-27
+
+### Added
+
+- **`$event` magic property** — hover documentation and `$`-triggered completion for `$event`, matching the existing support for `$el`, `$refs`, `$store`, etc. `$event` gives access to the native browser Event object inside an `x-on` (or `@event`) handler expression; its docs link points to the `x-on` directive page since Alpine documents it there rather than on a dedicated Magics page.
+
+---
+
 ## [1.5.0] — 2026-07-25
 
 ### Added

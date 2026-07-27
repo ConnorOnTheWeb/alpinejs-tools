@@ -93,5 +93,49 @@ for (const language of ALPINE_LANGUAGES) {
 			).join('\n');
 			assert.ok(text.includes('x-show'), `[${language}] Expected x-show in hover, got: ${text}`);
 		});
+
+		test('Hover returns $event documentation', async () => {
+			const content = CONTENT.replace('open = !open', '$event.preventDefault(); open = !open');
+			const doc = await vscode.workspace.openTextDocument({ language, content });
+			await vscode.window.showTextDocument(doc);
+
+			const offset = content.indexOf('$event') + 2;
+			const position = doc.positionAt(offset);
+
+			const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+				'vscode.executeHoverProvider',
+				doc.uri,
+				position,
+			);
+
+			assert.ok(hovers && hovers.length > 0, `[${language}] Expected hover result for $event`);
+			const text = hovers.flatMap(h =>
+				h.contents.map(c => (typeof c === 'string' ? c : c.value)),
+			).join('\n');
+			assert.ok(text.includes('Event'), `[${language}] Expected Event in $event hover, got: ${text}`);
+		});
+
+		test('Completion includes $event magic property', async () => {
+			const content = CONTENT.replace('open = !open', '$');
+			const doc = await vscode.workspace.openTextDocument({ language, content });
+			await vscode.window.showTextDocument(doc);
+
+			const offset = content.indexOf('$') + 1;
+			const position = doc.positionAt(offset);
+
+			const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+				'vscode.executeCompletionItemProvider',
+				doc.uri,
+				position,
+			);
+
+			const labels = list.items.map(i =>
+				typeof i.label === 'string' ? i.label : i.label.label,
+			);
+			assert.ok(
+				labels.includes('$event'),
+				`[${language}] Expected $event in completions, got: ${labels.join(', ')}`,
+			);
+		});
 	});
 }
