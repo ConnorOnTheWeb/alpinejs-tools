@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1] — 2026-07-30
+
+### Fixed
+
+- **Livewire's `wire:model` (and other `wire:*` / colon-containing attributes) were mistaken for Alpine's `:` shorthand** — the `:` shorthand hover, the dot-triggered modifier completions, and the directive-value completions all matched a bare `:` followed by word characters anywhere in the attribute name, with no check on what preceded the colon. Since `wire:model` literally contains the substring `:model`, hovering it showed "`:model` is shorthand for `x-bind:model`", typing `wire:model.` offered Alpine's `x-bind` modifiers (`camel`, `dot`, `attr`), and `wire:model="…"` offered Alpine `x-data` property completions inside the value — none of which apply to a Livewire attribute. All three now require the colon to not be immediately preceded by an identifier character (`(?<![\w-]):`), so the colon must sit at an actual attribute-name boundary rather than merely appear somewhere in the string. This is the same class of boundary-matching bug as the `translate-x-1/2` false positive (v1.4.1) and the `x-trap` allow-list miskey (v1.5.0), but for the `:` shorthand family rather than the `x-` prefix. As a side effect, this also resolves the `:` shorthand hover firing inside Tailwind pseudo-variant classes like `hover:text-red-500` (previously noted under Known Issues).
+
+---
+
 ## [1.6.0] — 2026-07-27
 
 ### Added

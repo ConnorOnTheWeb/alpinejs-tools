@@ -120,7 +120,6 @@ No dependencies. Works with any Alpine.js v3 project.
 
 - `x-data` property completions use a heuristic (regex) to extract properties from the nearest `x-data` object literal. Complex expressions, computed keys, or spread operators won't be detected.
 - `$store` name completions require `Alpine.store('name', ...)` to appear in a workspace JS/TS/HTML file. Stores registered dynamically at runtime won't be listed.
-- The `:` shorthand hover may occasionally trigger inside CSS `pseudo:selector` values — hover away to dismiss.
 
 ## Release notes
 

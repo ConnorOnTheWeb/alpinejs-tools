@@ -172,7 +172,7 @@ function detectModifierContext(
 	linePrefix: string,
 ): { directive: string; applied: string[] } | null {
 	const m =
-		/(x-model|x-transition|x-on:[\w:-]+|x-bind:[\w:-]+|@[\w:-]+|:[\w:-]+)((?:\.[\w-]*)*)\.[\w-]*$/.exec(
+		/(x-model|x-transition|x-on:[\w:-]+|x-bind:[\w:-]+|@[\w:-]+|(?<![\w-]):[\w:-]+)((?:\.[\w-]*)*)\.[\w-]*$/.exec(
 			linePrefix,
 		);
 	if (!m) { return null; }
@@ -274,10 +274,14 @@ export function activate(context: vscode.ExtensionContext): void {
 					}
 				}
 
-				// : shorthand — show x-bind docs with context note
+				// : shorthand — show x-bind docs with context note.
+				// The colon must not be immediately preceded by an identifier
+				// character, otherwise attributes like `wire:model` (colon is
+				// part of a Livewire attribute name, not the start of one) would
+				// be mistaken for Alpine's `:model` shorthand.
 				const colonRange = document.getWordRangeAtPosition(
 					position,
-					/:[\w.-]+/,
+					/(?<![\w-]):[\w.-]+/,
 				);
 				if (colonRange) {
 					const attr = attrMap.get('x-bind');
@@ -464,9 +468,12 @@ export function activate(context: vscode.ExtensionContext): void {
 					.lineAt(position)
 					.text.slice(0, position.character);
 
-				// Must be inside a quoted Alpine attribute value
+				// Must be inside a quoted Alpine attribute value. The bare `:`
+				// alternative requires a non-identifier character before the
+				// colon so that framework attributes like `wire:model` (colon
+				// mid-name, not shorthand for `x-bind:model`) aren't matched.
 				const directiveM =
-					/(x-[\w-]+(?::\w+)?|@[\w:-]+|:[\w:-]+)\s*=\s*(["'])([^"']*)$/.exec(
+					/(x-[\w-]+(?::\w+)?|@[\w:-]+|(?<![\w-]):[\w:-]+)\s*=\s*(["'])([^"']*)$/.exec(
 						linePrefix,
 					);
 				if (!directiveM) { return undefined; }
