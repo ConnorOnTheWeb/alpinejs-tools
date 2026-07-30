@@ -37,6 +37,21 @@ const CSS_VARIANT_CONTENT = `
 </div>
 `.trim();
 
+// Blade's own `@foreach`/`@endforeach` control-flow directives use the same
+// `@` prefix as Alpine's `@click` shorthand for `x-on:click`, but appear in
+// body text between tags rather than as an attribute name. Regression
+// coverage for the false-positive where these were mistaken for Alpine's `@`
+// shorthand. Includes a real `@click` attribute too, to confirm the fix
+// doesn't also break the legitimate case.
+const BLADE_DIRECTIVE_CONTENT = `
+<div x-data="{ open: false }">
+  <button @click="open = !open">Toggle</button>
+  @foreach ($items as $item)
+    <li>{{ $item }}</li>
+  @endforeach
+</div>
+`.trim();
+
 function waitFor<T>(
 	check: () => T | undefined,
 	timeoutMs = 3000,
@@ -240,6 +255,69 @@ for (const language of ALPINE_LANGUAGES) {
 			assert.ok(
 				!text.includes('shorthand for'),
 				`[${language}] Expected no Alpine shorthand hover on hover:text-red-500, got: ${text}`,
+			);
+		});
+
+		test('Blade `@foreach` is not treated as the Alpine `@` shorthand', async () => {
+			const doc = await vscode.workspace.openTextDocument({ language, content: BLADE_DIRECTIVE_CONTENT });
+			await vscode.window.showTextDocument(doc);
+
+			const offset = BLADE_DIRECTIVE_CONTENT.indexOf('@foreach') + 3;
+			const position = doc.positionAt(offset);
+
+			const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+				'vscode.executeHoverProvider',
+				doc.uri,
+				position,
+			);
+			const text = (hovers ?? []).flatMap(h =>
+				h.contents.map(c => (typeof c === 'string' ? c : c.value)),
+			).join('\n');
+			assert.ok(
+				!text.includes('shorthand for'),
+				`[${language}] Expected no Alpine shorthand hover on @foreach, got: ${text}`,
+			);
+		});
+
+		test('Blade `@endforeach` is not treated as the Alpine `@` shorthand', async () => {
+			const doc = await vscode.workspace.openTextDocument({ language, content: BLADE_DIRECTIVE_CONTENT });
+			await vscode.window.showTextDocument(doc);
+
+			const offset = BLADE_DIRECTIVE_CONTENT.indexOf('@endforeach') + 3;
+			const position = doc.positionAt(offset);
+
+			const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+				'vscode.executeHoverProvider',
+				doc.uri,
+				position,
+			);
+			const text = (hovers ?? []).flatMap(h =>
+				h.contents.map(c => (typeof c === 'string' ? c : c.value)),
+			).join('\n');
+			assert.ok(
+				!text.includes('shorthand for'),
+				`[${language}] Expected no Alpine shorthand hover on @endforeach, got: ${text}`,
+			);
+		});
+
+		test('@click as a real attribute still shows the Alpine `@` shorthand hover', async () => {
+			const doc = await vscode.workspace.openTextDocument({ language, content: BLADE_DIRECTIVE_CONTENT });
+			await vscode.window.showTextDocument(doc);
+
+			const offset = BLADE_DIRECTIVE_CONTENT.indexOf('@click') + 3;
+			const position = doc.positionAt(offset);
+
+			const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+				'vscode.executeHoverProvider',
+				doc.uri,
+				position,
+			);
+			const text = (hovers ?? []).flatMap(h =>
+				h.contents.map(c => (typeof c === 'string' ? c : c.value)),
+			).join('\n');
+			assert.ok(
+				text.includes('shorthand for'),
+				`[${language}] Expected Alpine shorthand hover on real @click attribute, got: ${text}`,
 			);
 		});
 

@@ -164,20 +164,49 @@ const BIND_MODIFIERS: ModifierDef[] = [
 ];
 
 /**
+ * Rough check for whether `position` sits inside an HTML tag's angle
+ * brackets (`<tag ...|...>`) rather than in body text between tags.
+ * Alpine's bare `@`/`:` shorthand is only ever valid as an attribute name;
+ * other template languages also use `@` as a body-text directive prefix
+ * (e.g. Blade's `@foreach`, `@if`, `@csrf`), which only ever appear between
+ * tags, never inside one — so this distinguishes the two without needing a
+ * real HTML parser. Scans backward for the nearest unmatched `<` or `>`.
+ */
+function isInsideTagAngleBrackets(
+	document: vscode.TextDocument,
+	position: vscode.Position,
+): boolean {
+	const textBefore = document.getText(
+		new vscode.Range(new vscode.Position(0, 0), position),
+	);
+	return textBefore.lastIndexOf('<') > textBefore.lastIndexOf('>');
+}
+
+/**
  * Detects whether the line prefix ends with an Alpine directive modifier
  * position (e.g. `x-model.`, `@click.stop.`, `x-on:keydown.enter.`).
  * Returns the directive base and already-applied modifier names.
+ *
+ * `insideTag` gates the bare `@`/`:` alternatives (see
+ * `isInsideTagAngleBrackets`) — the `x-`-prefixed alternatives aren't
+ * affected since no supported template language uses `x-model`/`x-on:`/
+ * `x-bind:` as its own body-text syntax.
  */
 function detectModifierContext(
 	linePrefix: string,
+	insideTag: boolean,
 ): { directive: string; applied: string[] } | null {
 	const m =
 		/(x-model|x-transition|x-on:[\w:-]+|x-bind:[\w:-]+|@[\w:-]+|(?<![\w-]):[\w:-]+)((?:\.[\w-]*)*)\.[\w-]*$/.exec(
 			linePrefix,
 		);
 	if (!m) { return null; }
+	const directive = m[1];
+	if ((directive.startsWith('@') || directive.startsWith(':')) && !insideTag) {
+		return null;
+	}
 	return {
-		directive: m[1],
+		directive,
 		applied: m[2].split('.').filter(Boolean),
 	};
 }
@@ -257,12 +286,17 @@ export function activate(context: vscode.ExtensionContext): void {
 					if (attr) { return buildHover(attr, xRange); }
 				}
 
-				// @ shorthand — show x-on docs with context note
+				// @ shorthand — show x-on docs with context note. Alpine's `@`
+				// shorthand is only ever a valid attribute name, so this is
+				// gated on actually being inside a tag's angle brackets —
+				// otherwise body-text `@` directives from other template
+				// languages (e.g. Blade's `@foreach`, `@if`, `@csrf`) are
+				// mistaken for it.
 				const atRange = document.getWordRangeAtPosition(
 					position,
 					/@[\w.-]+/,
 				);
-				if (atRange) {
+				if (atRange && isInsideTagAngleBrackets(document, atRange.start)) {
 					const attr = attrMap.get('x-on');
 					if (attr) {
 						const eventName = document.getText(atRange).slice(1).split('.')[0];
@@ -278,12 +312,14 @@ export function activate(context: vscode.ExtensionContext): void {
 				// The colon must not be immediately preceded by an identifier
 				// character, otherwise attributes like `wire:model` (colon is
 				// part of a Livewire attribute name, not the start of one) would
-				// be mistaken for Alpine's `:model` shorthand.
+				// be mistaken for Alpine's `:model` shorthand. Also gated on
+				// being inside a tag's angle brackets, for the same reason as
+				// the `@` shorthand above.
 				const colonRange = document.getWordRangeAtPosition(
 					position,
 					/(?<![\w-]):[\w.-]+/,
 				);
-				if (colonRange) {
+				if (colonRange && isInsideTagAngleBrackets(document, colonRange.start)) {
 					const attr = attrMap.get('x-bind');
 					if (attr) {
 						const propName = document
@@ -403,7 +439,10 @@ export function activate(context: vscode.ExtensionContext): void {
 				}
 
 				// Modifier completions inside Alpine directive attribute names
-				const modCtx = detectModifierContext(linePrefix);
+				const modCtx = detectModifierContext(
+					linePrefix,
+					isInsideTagAngleBrackets(document, position),
+				);
 				if (!modCtx) { return undefined; }
 
 				const { directive, applied } = modCtx;

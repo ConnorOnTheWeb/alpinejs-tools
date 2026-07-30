@@ -120,6 +120,7 @@ No dependencies. Works with any Alpine.js v3 project.
 
 - `x-data` property completions use a heuristic (regex) to extract properties from the nearest `x-data` object literal. Complex expressions, computed keys, or spread operators won't be detected.
 - `$store` name completions require `Alpine.store('name', ...)` to appear in a workspace JS/TS/HTML file. Stores registered dynamically at runtime won't be listed.
+- In Blade files, the standard Blade extension (`onecentlin.laravel-blade` / "Laravel Blade Snippets") colors Alpine's `@click`/`:class`-style attribute names as if they were Blade directives — its own grammar has a generic `@word` fallback rule with no check for HTML attribute-name position. This can't be corrected from Alpine.js Tools: VS Code's TextMate injection resolution always tries a grammar's own self-declared rules before any externally-injected one at the same priority, so Blade's rule always wins that tie. A fix would need to happen in that extension's grammar.
 
 ## Release notes
 

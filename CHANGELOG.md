@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.2] — 2026-07-30
+
+### Fixed
+
+- **Blade's `@foreach`, `@endforeach`, `@if`, `@csrf`, and other `@`-prefixed directives were mistaken for Alpine's `@` shorthand** — the `@` shorthand hover and the dot-triggered modifier completions matched any `@word` token anywhere in the document, with no check on whether it was actually an HTML attribute name. Blade uses `@` as its own body-text directive prefix (unlike Livewire's `wire:*`, which is at least always an attribute), so a bare boundary check like the one used for `v1.6.1`'s `:` fix wasn't sufficient here — `@foreach`'s `@` starts a token exactly the same way `@click`'s does. Both now additionally require the match to sit inside an HTML tag's angle brackets (`<tag ...|...>`) rather than in body text between tags, which is where Blade's directives always appear and Alpine's attribute shorthand never does. Applied to both the bare `@` and bare `:` alternatives for consistency, since the underlying invariant (Alpine's shorthand is only ever an attribute name) applies to both.
+
+- **Alpine JS syntax highlighting inside directive values never activated in real Blade files** — the injection grammar's `injectTo` (`package.json`) and `injectionSelector` (`syntaxes/alpine-injection.tmLanguage.json`) targeted scope `text.blade.php`, but the actual scope the standard Blade extension (`onecentlin.laravel-blade`, i.e. "Laravel Blade Snippets") registers is `text.html.php.blade` — a different string, so the injection silently never matched. Verified directly by tokenizing sample files with `vscode-textmate` against the real installed Blade grammar: with the old scope name, zero Alpine scopes were produced anywhere; with the corrected name, `x-data`/`:`/`@`/`wire:*` attribute values all tokenize and get JS syntax highlighting correctly. While investigating, the other 6 injected scope names (`text.html.ejs`, `text.html.php`, `text.html.twig`, `text.html.nunjucks`, `text.html.liquid`, `text.html.jinja`) were each cross-checked against a real, currently-published copy of their respective standard companion extension and confirmed correct — Blade was the only mismatch.
+
+---
+
 ## [1.6.1] — 2026-07-30
 
 ### Fixed
