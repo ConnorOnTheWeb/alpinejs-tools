@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "scopeName": "alpinejs.injection",
-  "injectionSelector": "L:text.html.basic, L:text.html.ejs, L:text.html.php, L:text.html.twig, L:text.html.nunjucks, L:text.html.php.blade, L:text.html.liquid, L:text.html.jinja",
+  "injectionSelector": "L:text.html.basic, L:text.html.derivative, L:text.html.ejs, L:text.html.php, L:text.html.twig, L:text.html.nunjucks, L:text.html.php.blade, L:text.html.liquid, L:text.html.jinja",
   "patterns": [
     { "include": "#alpine-attribute-value" }
   ],

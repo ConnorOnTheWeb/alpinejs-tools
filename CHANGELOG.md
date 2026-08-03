@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.3] — 2026-08-03
+
+### Fixed
+
+- **Alpine JS syntax highlighting never activated in plain `.html` files** — the injection grammar's `injectTo` (`package.json`) and `injectionSelector` (`syntaxes/alpine-injection.tmLanguage.json`) targeted scope `text.html.basic`, which is real, but isn't what VS Code actually loads as the root grammar for the `html` language. VS Code's bundled `html` extension contributes two grammars from the same TextMate bundle: `text.html.basic` (no `language` binding — used only as a shared pattern repository via `#include`, e.g. by PHP's and this extension's own `html.tmLanguage.json`-derived grammars) and `text.html.derivative` (bound to `"language": "html"`, the grammar actually loaded when a `.html` file is opened). Since `#include` reuses patterns without pushing the referenced grammar's scope name onto the token stack, `text.html.basic` never appears anywhere in a real `.html` document's scope stack, so the injection selector could never match — regardless of `injectTo`. Every other supported language was unaffected because their companion extensions bind `"language"` directly to the same scope name this extension targets (e.g. PHP binds `"language": "php"` straight to `text.html.php`), so this particular basic/derivative split is unique to VS Code's own built-in HTML grammar. Verified directly by tokenizing sample files with `vscode-textmate` against the real bundled HTML grammar: with only `text.html.basic` injected, zero Alpine scopes were produced in a `.html` file; adding `text.html.derivative` to both `injectTo` and `injectionSelector` produces `entity.other.attribute-name.alpine.html` and `source.js`-tokenized values as expected, with the existing `text.html.basic` targeting left in place (still needed for consumers that embed HTML via that scope directly, e.g. Markdown-embedded HTML blocks). This is the same class of bug as the Blade scope-name mismatch fixed in v1.6.2, but one layer further upstream — the wrong grammar being targeted, rather than the wrong companion-extension scope name.
+
+---
+
 ## [1.6.2] — 2026-07-30
 
 ### Fixed
