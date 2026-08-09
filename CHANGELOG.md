@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.7.2] — 2026-08-09
+
+### Fixed
+
+- **Alpine syntax highlighting never activated in `.liquid` files for users of the most popular Liquid extension.** `sissel.shopify-liquid` binds the `liquid` language to scope `source.liquid`, not `text.html.liquid` — the latter comes from `neilding.language-liquid` and `Shopify.theme-check-vscode`, which is why the scope name checked out when it was verified for v1.6.2. `source.liquid` has now been added to both `injectTo` (package.json) and `injectionSelector` (the grammar), leaving `text.html.liquid` in place so all three extensions are covered.
+
+  This is the same failure mode as v1.6.2 (Blade) and v1.6.3 (HTML), and it is subtler than it looks: `source.liquid` builds its markup rules by `#include`-ing `text.html.derivative`, so a `.liquid` document really is tokenized by the HTML grammar's patterns. But an `#include` reuses patterns without pushing the included grammar's scope name onto the stack, so `text.html.derivative` never appears in a `.liquid` document's scope stack and none of the nine existing targets could match. Verified by tokenizing a Liquid sample against the real installed grammar: before, `x-data` came out as `meta.attribute.unrecognized.x-data.html entity.other.attribute-name.html` with no Alpine scope and no JavaScript in the value; after, it is `meta.attribute.alpine.html entity.other.attribute-name.alpine.html` with the value tokenized as `source.js`.
+
+  While here, all eight HTML-family languages were re-audited the same way, tokenizing the same Alpine sample against each language's real root grammar as installed. Seven were already correct; Liquid was the only break. Blade still produces no scopes for `@click` and `:class` specifically, which is the known conflict with the Blade extension's own `@word` rule documented in the README, not a targeting problem.
+
+---
+
 ## [1.7.1] — 2026-08-09
 
 ### Added
