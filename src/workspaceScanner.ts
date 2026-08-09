@@ -1,7 +1,7 @@
 /**
  * workspaceScanner.ts
  *
- * Scans workspace files for Alpine.data() / Alpine.store() registrations and
+ * Scans workspace source files for Alpine.data() / Alpine.store() registrations and
  * the current document for x-ref declarations and x-data property names.
  *
  * Results are cached in-memory and invalidated by a VS Code file-system
@@ -11,12 +11,43 @@
 
 import * as vscode from 'vscode';
 
+// ─── Scan targets ─────────────────────────────────────────────────────────────
+
+/**
+ * File extensions searched for `Alpine.data()` / `Alpine.store()` calls.
+ *
+ * Single source of truth for both the initial `findFiles` sweep and the
+ * file-system watcher — they previously kept separate literal lists that had
+ * to be edited in lockstep.
+ */
+const SCAN_EXTENSIONS = [
+	'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs',
+	'html', 'liquid', 'jinja', 'jinja2', 'j2',
+] as const;
+
+/**
+ * Per-extension cap on the initial sweep. `findFiles` truncates silently, and
+ * a truncated sweep shows up as `$store` completions and go-to-definition just
+ * quietly not working, so the cap is generous rather than tight. Applied per
+ * extension, not in total.
+ */
+const MAX_FILES_PER_EXTENSION = 2000;
+
+/** True for files under a `node_modules` directory. */
+function isExcluded(uri: vscode.Uri): boolean {
+	return uri.path.includes('/node_modules/');
+}
+
 // ─── Regexes ──────────────────────────────────────────────────────────────────
 
 const ALPINE_STORE_RE = /Alpine\.store\s*\(\s*['"](\w+)['"]/g;
-const XREF_ATTR_RE = /x-ref=["'](\w+)["']/g;
-// Match x-data attribute value (double- or single-quoted, single-line)
-const XDATA_ATTR_RE = /x-data=(?:"([^"]*)"|'([^']*)')/g;
+// The optional `{` covers JSX's expression-container form, `x-ref={"name"}`
+// and `x-data={"{ open: false }"}`. A container holding a real object
+// (`x-data={{ open: false }}`) is deliberately not matched: Alpine reads the
+// attribute as a string, so that form renders `[object Object]` and is a bug
+// rather than a syntax to support.
+const XREF_ATTR_RE = /x-ref=\{?\s*["'](\w+)["']/g;
+const XDATA_ATTR_RE = /x-data=\{?\s*(?:"([^"]*)"|'([^']*)')/g;
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
 
@@ -172,20 +203,23 @@ export function getXDataProps(documentText: string, cursorOffset: number): strin
 export async function initWorkspaceScanner(
 	context: vscode.ExtensionContext,
 ): Promise<void> {
-	// Scan JS / TS / HTML / Liquid / Jinja template files — limit to 500 per glob to stay fast
 	const exclude = '**/node_modules/**';
-	const globs = ['**/*.js', '**/*.ts', '**/*.mjs', '**/*.html', '**/*.liquid', '**/*.jinja', '**/*.jinja2', '**/*.j2'];
 	const uriLists = await Promise.all(
-		globs.map(g => vscode.workspace.findFiles(g, exclude, 500)),
+		SCAN_EXTENSIONS.map(ext =>
+			vscode.workspace.findFiles(`**/*.${ext}`, exclude, MAX_FILES_PER_EXTENSION),
+		),
 	);
 	await Promise.all(uriLists.flat().map(scanFile));
 
-	// Re-scan on create/change; evict on delete
+	// Re-scan on create/change; evict on delete.
+	// `createFileSystemWatcher` takes no exclude pattern, so node_modules has
+	// to be filtered here — otherwise every `npm install` re-scans thousands
+	// of dependency files that `findFiles` above deliberately skipped.
 	const watcher = vscode.workspace.createFileSystemWatcher(
-		'**/*.{js,ts,mjs,html,liquid,jinja,jinja2,j2}',
+		`**/*.{${SCAN_EXTENSIONS.join(',')}}`,
 	);
-	watcher.onDidChange(uri => { void scanFile(uri); });
-	watcher.onDidCreate(uri => { void scanFile(uri); });
+	watcher.onDidChange(uri => { if (!isExcluded(uri)) { void scanFile(uri); } });
+	watcher.onDidCreate(uri => { if (!isExcluded(uri)) { void scanFile(uri); } });
 	watcher.onDidDelete(uri => { fileCache.delete(uri.toString()); });
 
 	context.subscriptions.push(watcher);

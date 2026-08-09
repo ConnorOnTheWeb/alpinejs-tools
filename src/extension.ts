@@ -11,15 +11,12 @@ import {
 } from './workspaceScanner';
 import { createAlpineDiagnosticProvider } from './diagnosticProvider';
 import { createAlpineCodeActionProvider } from './codeActionProvider';
-import { ALPINE_LANGUAGES } from './constants';
+import { createJsxCompletionProvider, type AlpineAttr } from './jsxCompletionProvider';
+import { ALPINE_LANGUAGES, isJsxLanguage } from './constants';
+import { isInsideJsxTagAt } from './jsxDocument';
+import { JSX_DIRECTIVE_VALUE_RE } from './jsxContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface AlpineAttr {
-	name: string;
-	description: string;
-	references: Array<{ name: string; url: string }>;
-}
 
 interface MagicDef {
 	label: string;
@@ -112,6 +109,7 @@ const EVENT_MODIFIERS: ModifierDef[] = [
 	{ name: 'prevent', detail: 'Call event.preventDefault()' },
 	{ name: 'stop', detail: 'Call event.stopPropagation()' },
 	{ name: 'self', detail: 'Only fire if event.target is the element itself' },
+	{ name: 'outside', detail: 'Only fire when the event occurs outside the element (click.outside)' },
 	{ name: 'window', detail: 'Add listener to the window object' },
 	{ name: 'document', detail: 'Add listener to the document object' },
 	{ name: 'once', detail: 'Fire the handler at most once' },
@@ -183,6 +181,25 @@ function isInsideTagAngleBrackets(
 }
 
 /**
+ * Language-aware "is `position` inside a tag's attribute region?".
+ *
+ * HTML-family documents use the angle-bracket scan above. JSX-family documents
+ * can't: there `<` is also the less-than operator and the generic-argument
+ * delimiter, and `=>` scatters `>` through the file, so the scan reports "yes"
+ * across large stretches of ordinary TypeScript. They use the structural
+ * scanner in jsxContext.ts instead.
+ */
+function isInsideTag(
+	document: vscode.TextDocument,
+	position: vscode.Position,
+): boolean {
+	if (isJsxLanguage(document.languageId)) {
+		return isInsideJsxTagAt(document, position);
+	}
+	return isInsideTagAngleBrackets(document, position);
+}
+
+/**
  * Detects whether the line prefix ends with an Alpine directive modifier
  * position (e.g. `x-model.`, `@click.stop.`, `x-on:keydown.enter.`).
  * Returns the directive base and already-applied modifier names.
@@ -246,6 +263,15 @@ export function activate(context: vscode.ExtensionContext): void {
 	);
 	const attrMap = new Map(alpineData.globalAttributes.map(a => [a.name, a]));
 
+	// Snippet bodies, shared with the `contributes.snippets` registration that
+	// serves the HTML-family languages. JSX can't use that mechanism (see
+	// jsxCompletionProvider.ts), so it reads the same file and serves the
+	// snippets through a context-gated completion provider instead.
+	const snippetPath = context.asAbsolutePath(
+		path.join('snippets', 'alpine.code-snippets'),
+	);
+	const alpineSnippets = JSON.parse(fs.readFileSync(snippetPath, 'utf8'));
+
 	// Kick off workspace scan (non-blocking — results fill the cache async)
 	void initWorkspaceScanner(context);
 
@@ -260,6 +286,17 @@ export function activate(context: vscode.ExtensionContext): void {
 				document: vscode.TextDocument,
 				position: vscode.Position,
 			): vscode.Hover | undefined {
+				// In JSX the rest of the document is JavaScript, where `$store`
+				// and the string `"x-data"` are perfectly ordinary tokens. Only
+				// answer inside a JSX opening tag, where they can only be
+				// Alpine.
+				if (
+					isJsxLanguage(document.languageId) &&
+					!isInsideJsxTagAt(document, position)
+				) {
+					return undefined;
+				}
+
 				// $magic hover — $el, $refs, $store, $watch, etc.
 				const magicRange = document.getWordRangeAtPosition(
 					position,
@@ -285,6 +322,12 @@ export function activate(context: vscode.ExtensionContext): void {
 					const attr = attrMap.get(baseName);
 					if (attr) { return buildHover(attr, xRange); }
 				}
+
+				// The `@event` and `:attr` shorthands below don't exist in JSX —
+				// they're syntax errors there (TS1003 / TS1382), so a `@` or `:`
+				// in a `.tsx` file is always something else (a decorator, a type
+				// annotation, an object literal key).
+				if (isJsxLanguage(document.languageId)) { return undefined; }
 
 				// @ shorthand — show x-on docs with context note. Alpine's `@`
 				// shorthand is only ever a valid attribute name, so this is
@@ -354,6 +397,17 @@ export function activate(context: vscode.ExtensionContext): void {
 				const match = /\$\w*$/.exec(linePrefix);
 				if (!match) { return undefined; }
 
+				// `$` is ordinary JavaScript — an identifier character, a
+				// jQuery-style binding, a template-literal interpolation. In
+				// JSX, only offer the magics where they actually mean
+				// something: inside an Alpine directive's value.
+				if (
+					isJsxLanguage(document.languageId) &&
+					!JSX_DIRECTIVE_VALUE_RE.test(linePrefix)
+				) {
+					return undefined;
+				}
+
 				const replaceRange = new vscode.Range(
 					new vscode.Position(position.line, match.index),
 					position,
@@ -389,6 +443,11 @@ export function activate(context: vscode.ExtensionContext): void {
 				const linePrefix = document
 					.lineAt(position)
 					.text.slice(0, position.character);
+
+				// Everything this provider offers is only meaningful inside a
+				// JSX opening tag; `.` is otherwise just property access.
+				const isJsx = isJsxLanguage(document.languageId);
+				if (isJsx && !isInsideTag(document, position)) { return undefined; }
 
 				// $refs.name — x-ref names from current document
 				const refsM = /\$refs\.(\w*)$/.exec(linePrefix);
@@ -438,10 +497,14 @@ export function activate(context: vscode.ExtensionContext): void {
 					});
 				}
 
-				// Modifier completions inside Alpine directive attribute names
+				// Modifier completions inside Alpine directive attribute names.
+				// JSX passes `insideTag: false` so that `detectModifierContext`
+				// rejects its bare `@`/`:` alternatives — those aren't valid
+				// JSX attribute names at all. The `x-on:`/`x-bind:`/`x-model`
+				// alternatives are unaffected by the flag and still match.
 				const modCtx = detectModifierContext(
 					linePrefix,
-					isInsideTagAngleBrackets(document, position),
+					isJsx ? false : isInsideTag(document, position),
 				);
 				if (!modCtx) { return undefined; }
 
@@ -511,8 +574,13 @@ export function activate(context: vscode.ExtensionContext): void {
 				// alternative requires a non-identifier character before the
 				// colon so that framework attributes like `wire:model` (colon
 				// mid-name, not shorthand for `x-bind:model`) aren't matched.
-				const directiveM =
-					/(x-[\w-]+(?::\w+)?|@[\w:-]+|(?<![\w-]):[\w:-]+)\s*=\s*(["'])([^"']*)$/.exec(
+				//
+				// JSX uses its own pattern: no `@`/`:` shorthands (syntax
+				// errors there), plus support for the expression-container
+				// form `x-text={"…"}` alongside the plain string form.
+				const directiveM = isJsxLanguage(document.languageId)
+					? JSX_DIRECTIVE_VALUE_RE.exec(linePrefix)
+					: /(x-[\w-]+(?::\w+)?|@[\w:-]+|(?<![\w-]):[\w:-]+)\s*=\s*(["'])([^"']*)$/.exec(
 						linePrefix,
 					);
 				if (!directiveM) { return undefined; }
@@ -564,6 +632,11 @@ export function activate(context: vscode.ExtensionContext): void {
 	);
 	context.subscriptions.push(directiveValueProvider);
 
+	// ── 4b. Directive-name + snippet completions for JSX ──────────────────────
+	// HTML-family languages get these from `contributes.html/customData` and
+	// `contributes.snippets`; neither reaches a `.jsx`/`.tsx` document.
+	createJsxCompletionProvider(context, alpineData.globalAttributes, alpineSnippets);
+
 	// ── 5. Code actions — quick fix for unknown directives ────────────────────
 	createAlpineCodeActionProvider(context);
 
@@ -578,15 +651,16 @@ export function activate(context: vscode.ExtensionContext): void {
 				const line = document.lineAt(position).text;
 				const col = position.character;
 
-				// Match x-data="value" or x-data='value' on the current line
-				const xDataRe = /x-data=(["'])([^"']*)\1/g;
+				// Match x-data="value", x-data='value', or JSX's
+				// x-data={"value"} on the current line
+				const xDataRe = /x-data=\{?\s*(["'])([^"']*)\1/g;
 				let m: RegExpExecArray | null;
 				while ((m = xDataRe.exec(line)) !== null) {
 					// Only trigger when the cursor is inside the quoted value portion,
 					// not on the attribute name itself.
 					// m[0] = 'x-data="value"', m[1] = quote char, m[2] = value
-					const valueStart = m.index + 'x-data='.length + 1; // after opening quote
-					const valueEnd = valueStart + m[2].length;          // before closing quote
+					const valueStart = m.index + m[0].indexOf(m[1]) + 1; // after opening quote
+					const valueEnd = valueStart + m[2].length;           // before closing quote
 					if (col < valueStart || col > valueEnd) { continue; }
 
 					const value = m[2].trim();

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "alpinejs.injection.jsx",
+  "injectionSelector": "L:source.tsx meta.tag, L:source.js.jsx meta.tag, L:source.js meta.tag",
+  "patterns": [
+    {
+      "include": "#alpine-attribute-value"
+    }
+  ],
+  "repository": {
+    "alpine-attribute-value": {
+      "name": "meta.attribute.alpine.jsx",
+      "begin": "(?<=[\\t ])(x-[\\w.:-]+)(\\s*=\\s*)([\"'])",
+      "end": "\\3",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.other.attribute-name.alpine.jsx"
+        },
+        "2": {
+          "name": "punctuation.separator.key-value.jsx"
+        },
+        "3": {
+          "name": "punctuation.definition.string.begin.jsx"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.string.end.jsx"
+        }
+      },
+      "contentName": "source.js",
+      "patterns": [
+        {
+          "include": "source.js"
+        }
+      ]
+    }
+  }
+}

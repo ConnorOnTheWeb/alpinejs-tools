@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.7.0] — 2026-08-09
+
+### Added
+
+- **JSX / TSX support** ([#5](https://github.com/ConnorOnTheWeb/alpinejs-tools/issues/5)) — `javascript`, `javascriptreact` and `typescriptreact` join the supported languages, for server-rendered JSX setups such as KitaJS (`@kitajs/html`) and Hono. Nothing is framework-specific: the gating is on JSX syntax, so Preact/React SSR, Solid and anything else rendering Alpine attributes from JSX are covered by the same code. `javascript` is included because it is the language ID for `.js`, `.mjs` and `.cjs` — only `.jsx` gets `javascriptreact`, and plenty of projects put JSX in `.js`. Hover documentation, magic-property and modifier completions, `x-data` property completions, unknown-directive diagnostics with quick fixes, go-to-definition, directive-name IntelliSense, snippets, and JavaScript syntax highlighting inside directive values all work in `.js`/`.jsx`/`.tsx` files.
+
+  Only the long forms are offered. `@click="…"` and `:class="…"` are not valid JSX attribute names — TypeScript rejects them with `TS1003 Identifier expected` and `TS1382 Unexpected token` before Alpine is ever involved — so the shorthand code paths are skipped in JSX rather than heuristically guarded, and snippet bodies that emit shorthand (`x-for`'s and `template-for`'s `:key="…"`) are rewritten to `x-bind:key="…"` on the way out. Verified against `tsc` that `x-data`, `x-on:click`, `x-show` and bare `x-cloak` all type-check clean against `JSX.IntrinsicElements`.
+
+  Directive values are recognised as plain strings (`x-text="count"`) and as expression containers holding a string literal (`x-text={"count"}`), including for `x-ref` and for `x-data`'s property extraction. A bare container (`x-data={cart}`) is ordinary TypeScript that the TS language service already completes, so Alpine stays out of it. `x-data={{ open: false }}` is deliberately not supported: Alpine reads the attribute as a string, so a container holding a real object renders `[object Object]`.
+
+  **New diagnostic: `@click` / `:class` used in JSX.** Reaching for the shorthand out of habit is the most likely mistake for someone bringing Alpine markup to JSX, and TypeScript's own report — `TS1003 Identifier expected`, pointing at the `@` — says nothing about Alpine or about what to do. A warning now names the problem and a Quick Fix rewrites it to the long form. Only ever raised inside a JSX opening tag, so decorators and object-literal keys are untouched.
+
+  Two pieces needed new machinery rather than a language-ID addition:
+
+  - **Directive-name IntelliSense and snippets don't reach JSX declaratively.** In HTML-family languages they come from `contributes.html/customData` and `contributes.snippets`. The former is read only by VS Code's HTML language service; the latter is scoped by language with no context field, so registering it for `typescriptreact` would offer `x-data="{ }"` in the middle of ordinary TypeScript. Both are now served in JSX by a completion provider (`jsxCompletionProvider.ts`) that reads the same two bundled files — one definition of each directive and snippet — and gates on cursor context: attribute completions only inside a JSX opening tag, block snippets (`alpine-data`, `template-if`, …) only outside one.
+
+  - **"Am I inside a tag?" can't be answered by scanning angle brackets in JSX.** The existing HTML check looks back for the nearest unmatched `<`. In a `.tsx` file `<` is also the less-than operator and the generic-argument delimiter, and `=>` scatters `>` everywhere, so that check reports "inside a tag" across large stretches of ordinary TypeScript. A structural scanner (`jsxContext.ts`) replaces it there: it walks the document once, skips comments and string/template literals, and accepts a `<` as a tag only if what follows is an element name and then a region containing nothing but attribute names, `=`, quoted strings, and balanced `{…}` containers. `new Map<string, number>()` and `i.n < 5 && i.n > 1` are rejected on the `,` and the `&`.
+
+    This gating is what keeps the extension inert in React projects that don't use Alpine, and it is covered by tests rather than assumed: `const diff = x-y > 0` produces no unknown-directive diagnostic (it matches the directive regex exactly), `{ 'color':theme.primary }` produces no `x-bind` shorthand hover, `@Injectable()` produces no `x-on` shorthand hover, a bare `$` offers no magic properties, and `x-` outside a tag offers no directive completions.
+
+  Syntax highlighting uses a separate injection grammar (`syntaxes/alpine-jsx-injection.tmLanguage.json`) rather than extending the existing one. Its selector is `L:source.tsx meta.tag, L:source.js.jsx meta.tag, L:source.js meta.tag` — scoped to JSX tags by the host grammar's own scope names, so the injection is structurally unable to reach non-JSX code, and the eight existing languages are untouched. Verified by tokenizing a mixed TSX sample with `vscode-textmate` against the real bundled TypeScriptReact, JavaScriptReact and JavaScript grammars: `x-data`, `x-text` and `x-on:click` receive `entity.other.attribute-name.alpine.jsx`, their values tokenize as `source.js` (`$store` → `variable.other.object.js`), and zero Alpine scopes appear on the plain-TypeScript lines of the same file. The `source.js` target was additionally checked against a real HTML document to confirm it doesn't reach into `<script>` blocks or re-scope the Alpine attribute values the HTML injection already owns. The grammar also omits the `[:@]` begin alternative the HTML one carries, since those aren't valid JSX attribute names.
+
+  Two limitations are deliberate and documented in the README. Markup inside tagged template literals (`` html`<div x-data="cart">` ``, as used by hono/html and lit-html) is not recognised — there is no reliable way to distinguish an HTML template from any other string, and guessing from the tag function's name is exactly the kind of heuristic that produced the `wire:model` and Blade `@foreach` false positives. And Astro, MDX and Vue SFCs are separate language IDs with their own companion-extension grammars; adding injection scopes for them without a copy of each extension to tokenize against is how v1.6.2 and v1.6.3 shipped injections that silently never matched, so they are left for a change that can be verified.
+
+### Changed
+
+- **Workspace scanning covers `.jsx`, `.tsx` and `.cjs`**, and the `findFiles` sweep and the file-system watcher now derive their patterns from one shared extension list instead of two separate literals that had to be edited in lockstep.
+
+- **Snippets for `javascript` moved from `contributes.snippets` to the completion provider.** The declarative registration offered all 41 snippets anywhere in a `.js` file, including `x-data="{ }"` in the middle of ordinary code. They are now context-gated like the rest: attribute snippets only inside a JSX tag, scaffolds (`alpine-data`, `template-if`) outside one, and the magic/modifier snippets (`$watch`, `.prevent`) outside one *in documents that reference `Alpine.`* — `$` and `.` are too common in JavaScript to offer unconditionally, but dropping them entirely would have cost Alpine authors their `$watch` snippet in an `Alpine.data()` body.
+
+- **Tag-range scans are cached per document version.** Hover, the dot completions, the directive-name completions and the diagnostic pass all need the same answer on the same keystroke; the scan now runs once per edit instead of once per provider. Documents over 2 MB are skipped entirely, which matters now that `javascript` is a supported language and minified bundles are in scope.
+
+### Fixed
+
+- **The workspace watcher re-scanned `node_modules`.** `createFileSystemWatcher` takes no exclude pattern, and unlike the `findFiles` sweep beside it, nothing filtered its callbacks — so every `npm install` re-scanned thousands of dependency files that the initial sweep had deliberately skipped. Now filtered explicitly. Pre-existing, but adding `.jsx`/`.tsx` to the scan list would have made it considerably worse.
+
+- **`.outside` was missing from the `x-on` modifier completions.** It is a real Alpine event modifier (`x-on:click.outside` / `@click.outside`, the standard way to close a dropdown on an outside click), and it was already in the snippets file and the README's snippet list — but not in the modifier table the dot-completion provider reads, so typing `@click.` never offered it. Added, along with `document` and `camel`/`dot` to the README's modifier table, which had also drifted from the implementation.
+
+- **The initial workspace sweep truncated silently at 500 files per extension.** `findFiles` caps without reporting, and the symptom is `$store` completions and go-to-definition quietly not working in a large repo. Raised to 2000 per extension.
+
+---
+
 ## [1.6.3] — 2026-08-03
 
 ### Fixed
