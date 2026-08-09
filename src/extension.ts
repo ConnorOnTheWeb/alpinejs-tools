@@ -177,7 +177,33 @@ function isInsideTagAngleBrackets(
 	const textBefore = document.getText(
 		new vscode.Range(new vscode.Position(0, 0), position),
 	);
+	// Inside <script> and <style> the content is JavaScript or CSS, where `<`
+	// is a comparison operator rather than a tag opener. `if (a < b) { }`
+	// followed by anything shorthand-shaped — `{ 'a':b }` — would otherwise
+	// leave the scan pointing at that `<` and report "inside a tag".
+	if (isInsideRawTextElement(textBefore)) { return false; }
 	return textBefore.lastIndexOf('<') > textBefore.lastIndexOf('>');
+}
+
+/** HTML elements whose content is not markup. */
+const RAW_TEXT_ELEMENTS = ['script', 'style'];
+
+/**
+ * True when the end of `textBefore` sits inside a `<script>` or `<style>`
+ * element's body. Being inside the element's own opening tag doesn't count —
+ * that really is a tag, and an Alpine attribute could legitimately live there.
+ */
+function isInsideRawTextElement(textBefore: string): boolean {
+	const lower = textBefore.toLowerCase();
+	for (const tag of RAW_TEXT_ELEMENTS) {
+		const open = lower.lastIndexOf(`<${tag}`);
+		if (open === -1) { continue; }
+		// Still within `<script …` itself, before its `>`.
+		const openEnd = lower.indexOf('>', open);
+		if (openEnd === -1) { continue; }
+		if (lower.lastIndexOf(`</${tag}`) < openEnd) { return true; }
+	}
+	return false;
 }
 
 /**
@@ -226,6 +252,29 @@ function detectModifierContext(
 		directive,
 		applied: m[2].split('.').filter(Boolean),
 	};
+}
+
+/**
+ * Resolves an attribute token to its documented directive, most specific
+ * match first.
+ *
+ * Alpine has three shapes to get through: dot modifiers (`x-transition.opacity`),
+ * colon arguments that are themselves documented (`x-transition:enter`, part of
+ * the class-based transition API), and colon arguments that are not
+ * (`x-on:click`, where the docs live on `x-on`). Stripping the colon
+ * unconditionally would lose the first kind; not stripping it would lose the
+ * last, which is by far the most common. So try the full name, then fall back
+ * to the part before the colon.
+ */
+function resolveDirective(
+	attrMap: Map<string, AlpineAttr>,
+	token: string,
+): AlpineAttr | undefined {
+	const withoutModifiers = token.split('.')[0];
+	return (
+		attrMap.get(withoutModifiers) ??
+		attrMap.get(withoutModifiers.split(':')[0])
+	);
 }
 
 // ─── Hover helper ─────────────────────────────────────────────────────────────
@@ -312,14 +361,17 @@ export function activate(context: vscode.ExtensionContext): void {
 					}
 				}
 
-				// x-* directive
+				// x-* directive. The `:` in the character class lets
+				// `x-transition:enter` resolve to its own documentation rather
+				// than falling back to `x-transition`; `resolveDirective`
+				// handles the fallback for arguments that aren't separately
+				// documented, like `x-on:click`.
 				const xRange = document.getWordRangeAtPosition(
 					position,
-					/x-[\w.-]+/,
+					/x-[\w.:-]+/,
 				);
 				if (xRange) {
-					const baseName = document.getText(xRange).split('.')[0];
-					const attr = attrMap.get(baseName);
+					const attr = resolveDirective(attrMap, document.getText(xRange));
 					if (attr) { return buildHover(attr, xRange); }
 				}
 

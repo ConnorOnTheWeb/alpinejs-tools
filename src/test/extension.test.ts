@@ -78,6 +78,34 @@ function waitFor<T>(
 	});
 }
 
+/**
+ * Fails loudly when a language ID isn't registered in the test host.
+ *
+ * Without this, a missing companion extension is nearly invisible: the
+ * document opens as `plaintext`, no provider is registered for it, the
+ * positive tests fail with confusing "expected a hover" messages, and every
+ * negative test ("no Alpine shorthand hover here") passes for the wrong
+ * reason. That combination made it look like six of the eight HTML-family
+ * languages were covered when in fact none of their assertions meant
+ * anything. The companion extensions are installed by .vscode-test.mjs; this
+ * asserts the install actually took.
+ */
+async function assertLanguageRegistered(language: string): Promise<void> {
+	const known = await vscode.languages.getLanguages();
+	assert.ok(
+		known.includes(language),
+		`Language '${language}' is not registered in the test host, so every ` +
+		`assertion for it would be meaningless. Check that its companion ` +
+		`extension is listed in .vscode-test.mjs and installed successfully.`,
+	);
+	const doc = await vscode.workspace.openTextDocument({ language, content: '' });
+	assert.strictEqual(
+		doc.languageId,
+		language,
+		`Documents opened as '${language}' resolve to '${doc.languageId}'.`,
+	);
+}
+
 async function getAlpineDiagnostics(uri: vscode.Uri): Promise<vscode.Diagnostic[]> {
 	return waitFor(() => {
 		const diags = vscode.languages.getDiagnostics(uri).filter(
@@ -101,6 +129,10 @@ for (const language of HTML_LANGUAGES) {
 		suiteSetup(async () => {
 			const ext = vscode.extensions.getExtension(EXTENSION_ID);
 			await ext?.activate();
+		});
+
+		test('Language is registered in the test host', async () => {
+			await assertLanguageRegistered(language);
 		});
 
 		test('Diagnostics fire for unknown directive', async () => {
@@ -175,6 +207,99 @@ for (const language of HTML_LANGUAGES) {
 			assert.ok(
 				labels.includes('$event'),
 				`[${language}] Expected $event in completions, got: ${labels.join(', ')}`,
+			);
+		});
+
+		test('Hover on x-transition:enter shows the class-API docs', async () => {
+			const content = '<div x-show="o" x-transition:enter="ease-out"></div>';
+			const doc = await vscode.workspace.openTextDocument({ language, content });
+			await vscode.window.showTextDocument(doc);
+
+			const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+				'vscode.executeHoverProvider',
+				doc.uri,
+				doc.positionAt(content.indexOf('x-transition:enter') + 2),
+			);
+			const text = (hovers ?? []).flatMap(h =>
+				h.contents.map(c => (typeof c === 'string' ? c : c.value)),
+			).join('\n');
+			assert.ok(
+				text.includes('x-transition:enter'),
+				`[${language}] Expected x-transition:enter hover, got: ${text}`,
+			);
+		});
+
+		test('Hover on x-on:click still falls back to x-on docs', async () => {
+			// Guards the regression risk in widening the hover regex to accept
+			// `:` — `x-on:click` has no entry of its own and must fall back.
+			const content = '<button x-on:click="go()">x</button>';
+			const doc = await vscode.workspace.openTextDocument({ language, content });
+			await vscode.window.showTextDocument(doc);
+
+			const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+				'vscode.executeHoverProvider',
+				doc.uri,
+				doc.positionAt(content.indexOf('x-on:click') + 2),
+			);
+			const text = (hovers ?? []).flatMap(h =>
+				h.contents.map(c => (typeof c === 'string' ? c : c.value)),
+			).join('\n');
+			assert.ok(
+				text.includes('x-on'),
+				`[${language}] Expected x-on hover fallback, got: ${text}`,
+			);
+		});
+
+		test('Colon token after a `<` comparison in <script> is not a shorthand', async () => {
+			// `lastIndexOf('<') > lastIndexOf('>')` used to report "inside a
+			// tag" for everything following a less-than operator in a script
+			// block, so this object key hovered as Alpine's `:` shorthand.
+			const content = [
+				'<div x-data="{ open: false }"></div>',
+				'<script>',
+				'  if (a < b) { }',
+				"  const o = { 'color':theme };",
+				'</script>',
+			].join('\n');
+			const doc = await vscode.workspace.openTextDocument({ language, content });
+			await vscode.window.showTextDocument(doc);
+
+			const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+				'vscode.executeHoverProvider',
+				doc.uri,
+				doc.positionAt(content.indexOf("'color':theme") + 9),
+			);
+			const text = (hovers ?? []).flatMap(h =>
+				h.contents.map(c => (typeof c === 'string' ? c : c.value)),
+			).join('\n');
+			assert.ok(
+				!text.includes('shorthand for'),
+				`[${language}] Expected no Alpine shorthand hover inside <script>, got: ${text}`,
+			);
+		});
+
+		test('Real @click after a <script> block still resolves', async () => {
+			// The raw-text check must not swallow markup that follows the block.
+			const content = [
+				'<script>',
+				'  if (a < b) { }',
+				'</script>',
+				'<button @click="go()">x</button>',
+			].join('\n');
+			const doc = await vscode.workspace.openTextDocument({ language, content });
+			await vscode.window.showTextDocument(doc);
+
+			const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+				'vscode.executeHoverProvider',
+				doc.uri,
+				doc.positionAt(content.indexOf('@click') + 3),
+			);
+			const text = (hovers ?? []).flatMap(h =>
+				h.contents.map(c => (typeof c === 'string' ? c : c.value)),
+			).join('\n');
+			assert.ok(
+				text.includes('shorthand for'),
+				`[${language}] Expected @click shorthand hover after a script block, got: ${text}`,
 			);
 		});
 
@@ -490,6 +615,10 @@ for (const language of JSX_LANGUAGES) {
 			await ext?.activate();
 		});
 
+		test('Language is registered in the test host', async () => {
+			await assertLanguageRegistered(language);
+		});
+
 		test('Diagnostics fire for unknown directive inside a JSX tag', async () => {
 			const doc = await openDoc(language, JSX_CONTENT);
 			const diags = await getAlpineDiagnostics(doc.uri);
@@ -600,6 +729,17 @@ for (const language of JSX_LANGUAGES) {
 			assert.ok(
 				!labels.includes('$el') && !labels.includes('$store'),
 				`[${language}] Expected no Alpine magic completions outside a directive value, got: ${labels.join(', ')}`,
+			);
+		});
+
+		test('x-transition:enter completes as a directive name', async () => {
+			const content = 'export const A = () => <div x-transition:></div>;';
+			const doc = await openDoc(language, content);
+			const items = await completionsAt(doc, content.indexOf('x-transition:') + 'x-transition:'.length);
+			const names = labelsOf(items.filter(i => i.detail === 'Alpine.js directive'));
+			assert.ok(
+				names.includes('x-transition:enter') && names.includes('x-transition:leave-end'),
+				`[${language}] Expected x-transition class API completions, got: ${names.join(', ')}`,
 			);
 		});
 

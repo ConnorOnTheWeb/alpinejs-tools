@@ -211,6 +211,26 @@ export async function initWorkspaceScanner(
 	);
 	await Promise.all(uriLists.flat().map(scanFile));
 
+	// `findFiles` truncates at the cap without saying so, and a truncated scan
+	// is invisible from the outside: `$store` completions and go-to-definition
+	// simply come up empty for registrations in the files that were skipped.
+	// Say so somewhere the user can find it.
+	const truncated = SCAN_EXTENSIONS.filter(
+		(_, i) => uriLists[i].length >= MAX_FILES_PER_EXTENSION,
+	);
+	if (truncated.length > 0) {
+		const output = vscode.window.createOutputChannel('Alpine.js Tools');
+		context.subscriptions.push(output);
+		output.appendLine(
+			`Workspace scan hit the ${MAX_FILES_PER_EXTENSION}-file limit for: ` +
+			`${truncated.map(e => `*.${e}`).join(', ')}.`,
+		);
+		output.appendLine(
+			'Alpine.data() and Alpine.store() registrations in the files beyond ' +
+			'that limit will not appear in completions or go-to-definition.',
+		);
+	}
+
 	// Re-scan on create/change; evict on delete.
 	// `createFileSystemWatcher` takes no exclude pattern, so node_modules has
 	// to be filtered here — otherwise every `npm install` re-scans thousands

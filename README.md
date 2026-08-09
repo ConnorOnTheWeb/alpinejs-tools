@@ -25,7 +25,7 @@ Attribute values on `x-*`, `:`, and `@` attributes are tokenised as full JavaScr
 
 Hover over any Alpine directive, shorthand, or magic property to see documentation and a link to alpinejs.dev.
 
-- `x-data`, `x-show`, `x-model`, `x-for`, `x-if`, `x-transition` … all 18 directives
+- `x-data`, `x-show`, `x-model`, `x-for`, `x-if`, `x-transition` … all 18 core directives, 6 plugin directives, and the 6 `x-transition:enter`/`:leave` class attributes
 - `@click` → shows `x-on` docs with a note that `@click` is shorthand for `x-on:click`
 - `:class` → shows `x-bind` docs with a note that `:class` is shorthand for `x-bind:class`
 - `$el`, `$refs`, `$store`, `$watch`, `$dispatch`, `$nextTick`, `$root`, `$data`, `$id`, `$persist`, `$event` → type signature and docs link
@@ -92,9 +92,9 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 ### Snippets
 
-41 snippets available in HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja-HTML, JavaScript, and JSX/TSX:
+42 snippets available in HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja-HTML, JavaScript, and JSX/TSX:
 
-**Directive attributes** — `x-data`, `x-init`, `x-show`, `x-bind`, `x-on`, `x-text`, `x-html`, `x-model`, `x-for`, `x-transition`, `x-effect`, `x-ref`, `x-if`, `x-teleport`, `x-id`
+**Directive attributes** — `x-data`, `x-init`, `x-show`, `x-bind`, `x-on`, `x-text`, `x-html`, `x-model`, `x-for`, `x-transition`, `x-transition-classes` (all six `enter`/`leave` phases), `x-effect`, `x-ref`, `x-if`, `x-teleport`, `x-id`
 
 **Block snippets** — `template-for`, `template-if` (full `<template>` wrappers)
 

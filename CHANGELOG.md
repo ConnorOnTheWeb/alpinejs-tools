@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.7.1] — 2026-08-09
+
+### Added
+
+- **`x-transition:enter` / `:leave` class attributes.** Alpine's class-based transition API (`x-transition:enter`, `:enter-start`, `:enter-end`, `:leave`, `:leave-start`, `:leave-end`) appeared nowhere in the custom data, the snippets, or the completions, despite being the standard way to drive Alpine transitions with Tailwind classes. Diagnostics never flagged them, because `getBaseDirective` splits on `:` and sees a valid `x-transition`, so this was purely a discoverability gap rather than a false positive. All six now have hover documentation and attribute-name completions, plus an `x-transition-classes` snippet that scaffolds the full set.
+
+  Resolving them required widening the hover's directive pattern to accept `:`, which risked breaking `x-on:click` — that has no entry of its own and needs to fall back to `x-on`. Lookup now tries the full name first and falls back to the part before the colon, so `x-transition:enter` gets its own docs while `x-on:click`, `x-bind:class` and `x-mask:dynamic` keep resolving to their parents. Both directions are covered by tests.
+
+### Fixed
+
+- **Six of the eight HTML-family languages had no real test coverage.** `ejs`, `twig`, `nunjucks`, `blade`, `liquid` and `jinja-html` are contributed by companion extensions that were never installed in the test host, so those documents opened as `plaintext` and no provider was registered for them. The five positive tests per language failed visibly, but the nine negative ones ("no Alpine shorthand hover appears here") passed for the wrong reason — nothing appeared anywhere. The Livewire, Tailwind and Blade `@foreach` regressions fixed in v1.4.1, v1.6.1 and v1.6.2 were therefore unguarded in precisely the languages they were reported against. `.vscode-test.mjs` now installs all six (each ID verified against its published marketplace manifest to confirm the exact language ID it contributes), and every suite asserts its language is registered before running, so a failed install can never again masquerade as passing tests. The suite went from 134 passing / 30 failing to 210 passing / 0 failing.
+
+- **`<` inside a `<script>` or `<style>` block confused the HTML tag check.** `isInsideTagAngleBrackets` scans back for the nearest unmatched `<`, so a comparison like `if (a < b)` in a script block left the scan pointing at an operator, and anything shorthand-shaped after it — an object key such as `{ 'color':theme }` — was reported as Alpine's `:` shorthand for `x-bind`. Same family as the `wire:model` and Blade `@foreach` false positives in v1.6.1 and v1.6.2, one layer deeper. Raw-text element bodies are now excluded from the scan; being inside the `<script …>` opening tag itself still counts as a tag, since an attribute could legitimately live there.
+
+- **The workspace scan no longer truncates silently.** `findFiles` caps without reporting, and the failure mode is invisible: `$store` completions and go-to-definition just come up empty for anything past the limit. Hitting the cap now writes an explanation to an "Alpine.js Tools" output channel.
+
+---
+
 ## [1.7.0] — 2026-08-09
 
 ### Added
