@@ -113,6 +113,14 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 Jinja2 templates that use the plain `.html` extension (the common Flask/Django case) are already covered by the `html` language support — no Jinja extension required for those files.
 
+### Astro (syntax highlighting only)
+
+`.astro` files get JavaScript syntax highlighting inside Alpine directive values, the same as the languages above. The rest of the feature set — hover documentation, completions, unknown-directive diagnostics, go to definition — is **not** enabled in `.astro` yet, and is tracked for a later release.
+
+The reason is the frontmatter. Every `.astro` file opens with a `---` fenced block of TypeScript, and unlike a `<script>` block it isn't delimited by tags, so the scan that decides where an attribute can appear doesn't yet know to skip it. Enabling the providers before that would report `const gap = x-y;` in your frontmatter as an unknown directive. Highlighting has no such problem: it is anchored to Astro's own tag scopes, so it can only reach inside a real tag.
+
+Requires the official [Astro extension](https://marketplace.visualstudio.com/items?itemName=astro-build.astro-vscode) for the `.astro` language itself. Astro's own scoped attributes (`client:load`, `transition:animate`, `set:html`) are left alone.
+
 ### JSX and TSX
 
 Alpine directives are supported inside JSX in `.jsx`, `.tsx`, and `.js` files — JSX in a plain `.js` file gets the `javascript` language ID, not `javascriptreact`, so both are covered. Nothing is tied to a particular framework; it works for KitaJS, Hono, Preact/React SSR, Solid, or anything else rendering Alpine attributes from JSX. Example with [KitaJS](https://github.com/kitajs/html):

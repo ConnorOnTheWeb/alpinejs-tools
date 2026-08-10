@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.7.4] — 2026-08-09
+
+### Added
+
+- **Alpine syntax highlighting in `.astro` files.** Directive values are tokenized as JavaScript and directive names get the Alpine scope, the same as in the ten existing targets — `x-data`, `x-init`, `@click.prevent` and `x-bind:class` all resolve to `entity.other.attribute-name.alpine.html`, with `$store.cart.total` inside the value coming out as `source.js variable.other.object.js`.
+
+  The scope name is `source.astro`, from `astro-build.astro-vscode` — confirmed by downloading the extension and tokenizing a real `.astro` sample against its actual grammar, not by reading its manifest. Reading the manifest is how v1.6.2, v1.6.3 and v1.7.2 each shipped an injection that silently never matched anything.
+
+  Astro's own scoped attributes are untouched: `client:load`, `transition:animate` and `set:html` keep `entity.other.attribute-name.astro`, because the colon-shorthand pattern still requires whitespace before the `:` (the v1.6.1 fix). The other ten targets were re-tokenized after the change and are unaffected.
+
+- **The Astro injection is scoped to the tag, unlike the ten HTML ones.** Those use a bare selector (`L:text.html.basic`), which is safe because everything outside a tag in an HTML file is markup or a raw-text element. An `.astro` file is different: it opens with a `---` fenced block of TypeScript. Measured on a seven-line sample, a bare `L:source.astro` selector produced 22 Alpine-scoped tokens, five of them inside a TypeScript string literal in the frontmatter (`const cls = ' x-show="open"'`, re-scoped as a live Alpine attribute) and five in body text. `L:source.astro meta.tag.start.astro` produced 12, all of them inside the real tag, with nothing outside it. That mirrors what the JSX injection already does (`L:source.tsx meta.tag`).
+
+### Notes
+
+- **This is highlighting only, on purpose.** `astro` is deliberately not added to the supported-language list, so hover, completions, diagnostics and go to definition stay out of `.astro` for now. The frontmatter is the blocker: it is a JavaScript region that isn't delimited by tags, and the tolerant HTML tag scan added in v1.7.3 is not built for that — `const wide = cols<breakpoint;` on one line and `const gap = x-y;` on the next opens a region that runs to the `>` of a later comparison and swallows the `x-y`, reporting it as an unknown directive. Providers need frontmatter masking first; that belongs with the region work rather than bolted on here.
+
+  Highlighting has no equivalent risk, because it is anchored to Astro's own `meta.tag.start.astro` scope and structurally cannot reach outside a tag — which the measurement above is exactly a test of. Grammar contributions are read from the manifest without the extension being activated, so this works with no language registration and no new activation event.
+
+---
+
 ## [1.7.3] — 2026-08-09
 
 ### Fixed
