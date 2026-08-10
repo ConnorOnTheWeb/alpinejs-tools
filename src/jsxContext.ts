@@ -6,9 +6,10 @@
  *
  * Why this exists
  * ───────────────
- * In an HTML-family document, "inside a tag" can be answered by scanning back
- * for the nearest unmatched `<` — every other `<` in the file is markup too.
- * In a JSX document that heuristic is useless: `<` is also the less-than
+ * In an HTML-family document a tolerant scan does the job (htmlContext.ts):
+ * almost every `<` in the file really is a tag opener, so the scanner skips
+ * what markup says to skip and otherwise keeps looking for the `>`.
+ * In a JSX document that approach is useless: `<` is also the less-than
  * operator (`if (a < b)`) and the generic-argument delimiter
  * (`new Map<string, number>()`), and `=>` supplies stray `>` characters
  * everywhere. Applied to a `.tsx` file it reports "inside a tag" for large
@@ -34,11 +35,7 @@
  * directives can appear.
  */
 
-/** Half-open `[start, end)` span covering one JSX opening tag's attributes. */
-export interface JsxTagRange {
-	start: number;
-	end: number;
-}
+import { createRangeCache, isInRanges, type TagRange } from './tagRanges';
 
 /** First character of a JSX element name. */
 const NAME_START_RE = /[A-Za-z_$]/;
@@ -113,7 +110,7 @@ function skipBraces(text: string, i: number): number {
  * have to work there. It can only be reached through a run of characters that
  * are all legal inside a tag, so ordinary TypeScript never lands in it.
  */
-function scanJsxOpenTag(text: string, lt: number): JsxTagRange | null {
+function scanJsxOpenTag(text: string, lt: number): TagRange | null {
 	let i = lt + 1;
 	if (i >= text.length || !NAME_START_RE.test(text[i])) { return null; }
 	while (i < text.length && NAME_CHAR_RE.test(text[i])) { i++; }
@@ -153,8 +150,8 @@ function scanJsxOpenTag(text: string, lt: number): JsxTagRange | null {
 /**
  * Attribute regions of every JSX opening tag in `text`, in source order.
  */
-export function findJsxTagRanges(text: string): JsxTagRange[] {
-	const ranges: JsxTagRange[] = [];
+export function findJsxTagRanges(text: string): TagRange[] {
+	const ranges: TagRange[] = [];
 	let i = 0;
 	while (i < text.length) {
 		const c = text[i];
@@ -186,53 +183,11 @@ export function findJsxTagRanges(text: string): JsxTagRange[] {
 }
 
 /**
- * Largest document the scanner will walk. Past this the extension goes inert
- * rather than scanning a multi-megabyte bundle. Relevant because `javascript`
- * is a supported language, so minified `.js` files are in scope.
- */
-const MAX_SCANNED_LENGTH = 2_000_000;
-
-/**
- * Most recent scan, keyed by document identity and version.
- *
- * Several providers ask about the same document on the same keystroke — hover,
- * the dot completions, the directive-name completions, and the diagnostic pass
- * all need the ranges. The scan is linear, but running it three or four times
- * per keystroke on a large file is not, so the result is held until the
- * document changes.
- */
-let cacheKey: string | undefined;
-let cacheVersion = -1;
-let cacheRanges: JsxTagRange[] = [];
-
-/**
  * Tag ranges for a document, reusing the previous scan when the document
  * hasn't changed. `key` should identify the document (its URI) and `version`
  * should increment on edit (`TextDocument.version`).
- *
- * `getText` is a callback rather than a string so that a cache hit doesn't
- * pay for materialising the document text it isn't going to read.
  */
-export function getJsxTagRanges(
-	key: string,
-	version: number,
-	getText: () => string,
-): JsxTagRange[] {
-	if (key === cacheKey && version === cacheVersion) { return cacheRanges; }
-	const text = getText();
-	cacheKey = key;
-	cacheVersion = version;
-	cacheRanges = text.length > MAX_SCANNED_LENGTH ? [] : findJsxTagRanges(text);
-	return cacheRanges;
-}
-
-/** True when `offset` falls inside one of the given tag ranges. */
-export function isInRanges(ranges: JsxTagRange[], offset: number): boolean {
-	for (const range of ranges) {
-		if (offset > range.start && offset <= range.end) { return true; }
-	}
-	return false;
-}
+export const getJsxTagRanges = createRangeCache(findJsxTagRanges);
 
 /** True when `offset` falls inside some JSX opening tag's attribute region. */
 export function isInsideJsxTag(text: string, offset: number): boolean {

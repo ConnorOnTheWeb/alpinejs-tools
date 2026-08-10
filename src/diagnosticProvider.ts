@@ -13,18 +13,21 @@
  * Official Alpine plugin directives (`x-intersect`, `x-collapse`, etc.) are
  * recognised and never flagged, even without the plugin package present.
  *
- * In JSX-family documents the scan is additionally restricted to spans that
- * are structurally inside a JSX opening tag (see jsxContext.ts), because there
- * the rest of the document is JavaScript and expressions like `x-y > 0` match
- * the directive regex by coincidence.
+ * The scan is restricted to spans that are structurally inside an opening
+ * tag's attribute region, because Alpine syntax is only ever an attribute
+ * name. Everywhere else, an `x-…` shaped match is a coincidence: `x-axis` in a
+ * sentence, `x-y` in a `<script>` block, `x-offset` in a TODO comment, or
+ * `const diff = x-y > 0` in the JavaScript that makes up the rest of a JSX
+ * document. htmlContext.ts and jsxContext.ts supply the regions.
  *
  * Diagnostics are debounced (500 ms) to avoid firing on every keystroke.
  */
 
 import * as vscode from 'vscode';
 import { ALPINE_LANGUAGES_SET, isJsxLanguage } from './constants';
-import { isInRanges, type JsxTagRange } from './jsxContext';
+import { htmlTagRangesFor } from './htmlDocument';
 import { jsxTagRangesFor } from './jsxDocument';
+import { isInRanges, type TagRange } from './tagRanges';
 
 // ─── Known directive sets ─────────────────────────────────────────────────────
 
@@ -155,18 +158,22 @@ export function createAlpineDiagnosticProvider(
 		const text = document.getText();
 		const diagnostics: vscode.Diagnostic[] = [];
 
-		// In JSX the whole document is JavaScript, so `x-…` shaped matches turn
-		// up in ordinary code — `const diff = x-y > 0` matches the directive
-		// regex exactly. Restrict reporting to spans that are structurally
-		// inside a JSX opening tag, the only place a directive can appear.
-		const tagRanges: JsxTagRange[] | undefined =
-			isJsxLanguage(document.languageId) ? jsxTagRangesFor(document) : undefined;
+		// Alpine syntax is only ever an attribute name, so reporting is
+		// restricted to opening tags' attribute regions. Both families need
+		// this and for the same reason, but they find the regions differently:
+		// in JSX the rest of the document is JavaScript (`const diff = x-y > 0`
+		// matches the directive regex exactly), in HTML it is prose, script
+		// bodies and comments (`the x-axis of the chart`).
+		const isJsx = isJsxLanguage(document.languageId);
+		const tagRanges: TagRange[] = isJsx
+			? jsxTagRangesFor(document)
+			: htmlTagRangesFor(document);
 
 		ALPINE_DIRECTIVE_RE.lastIndex = 0;
 		let match: RegExpExecArray | null;
 
 		while ((match = ALPINE_DIRECTIVE_RE.exec(text)) !== null) {
-			if (tagRanges && !isInRanges(tagRanges, match.index)) { continue; }
+			if (!isInRanges(tagRanges, match.index)) { continue; }
 			const base = getBaseDirective(match[1]);
 			if (!CORE_DIRECTIVES.has(base) && !PLUGIN_DIRECTIVES.has(base)) {
 				diagnostics.push(buildDiagnostic(document, match, base));
@@ -178,7 +185,7 @@ export function createAlpineDiagnosticProvider(
 		// reports `TS1003 Identifier expected` pointing at the `@`, which says
 		// nothing about Alpine and offers no way forward. Name the actual
 		// problem and let the code action rewrite it to the long form.
-		if (tagRanges) {
+		if (isJsx) {
 			ALPINE_SHORTHAND_RE.lastIndex = 0;
 			let sh: RegExpExecArray | null;
 			while ((sh = ALPINE_SHORTHAND_RE.exec(text)) !== null) {

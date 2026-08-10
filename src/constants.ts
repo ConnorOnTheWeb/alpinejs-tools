@@ -4,8 +4,8 @@
  * The two families need different handling in several providers:
  *
  * - HTML-family languages accept Alpine's `@event` / `:attr` shorthands as
- *   attribute names, and "am I inside a tag?" can be answered with a simple
- *   angle-bracket scan (see `isInsideTagAngleBrackets` in extension.ts).
+ *   attribute names, and "am I inside a tag?" is answered by the tolerant
+ *   markup scan in htmlContext.ts.
  *
  * - JSX-family languages do not. `@click="…"` and `:class="…"` are outright
  *   syntax errors in TSX (TS1003 "Identifier expected" / TS1382 "Unexpected

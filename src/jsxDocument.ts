@@ -6,10 +6,11 @@
  */
 
 import * as vscode from 'vscode';
-import { getJsxTagRanges, isInRanges, type JsxTagRange } from './jsxContext';
+import { getJsxTagRanges } from './jsxContext';
+import { isInRanges, type TagRange } from './tagRanges';
 
 /** Cached JSX opening-tag attribute regions for `document`. */
-export function jsxTagRangesFor(document: vscode.TextDocument): JsxTagRange[] {
+export function jsxTagRangesFor(document: vscode.TextDocument): TagRange[] {
 	return getJsxTagRanges(
 		document.uri.toString(),
 		document.version,

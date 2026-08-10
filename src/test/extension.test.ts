@@ -57,6 +57,69 @@ const BLADE_DIRECTIVE_CONTENT = `
 </div>
 `.trim();
 
+// Hyphenated words in prose, arithmetic in a `<script>` block and a TODO in an
+// HTML comment all produce `x-…` shaped matches that the directive regex
+// accepts, none of which is an attribute name. Regression coverage for the
+// v1.7.3 false positive: the diagnostic's tag-range guard was only ever built
+// for JSX, so in HTML-family languages the regex ran over the whole document.
+const NON_ATTRIBUTE_CONTENT = `
+<div x-data="{ open: false }">
+  <p>Values are plotted along the x-axis of the chart.</p>
+  <p>The chest x-ray was clear.</p>
+  <!-- TODO: fix the x-offset calculation -->
+  <script>
+    const diff = x-y > 0;
+    let size = x-large ;
+  </script>
+</div>
+`.trim();
+
+// The same prose and script noise, with a genuine typo among it. The
+// diagnostic has to stay quiet about the first and still report the second —
+// suppressing prose by suppressing everything would pass the test above.
+const TYPO_AMONG_PROSE_CONTENT = `
+<div x-data="{ count: 0 }">
+  <p>Plot the x-axis against time.</p>
+  <span x-dat="count"></span>
+  <script>const step = x-y;</script>
+</div>
+`.trim();
+
+// Commented-out markup, where the two consumers of the tag ranges deliberately
+// disagree: diagnostics stay out, because a typo in code you commented out is
+// noise you didn't ask for, and hover goes in, because hovering it is you
+// asking. Both directions are asserted below.
+const COMMENTED_MARKUP_CONTENT = `
+<div x-data="{ open: false }">
+  <!-- <button @click="open = !open" x-dat="open">Toggle</button> -->
+</div>
+`.trim();
+
+// Template constructs sitting between a tag name and its `>`, which is where
+// every one of these host languages emits attributes from. A tag scanner that
+// rejects on the first character it doesn't recognise discards the whole tag
+// and takes the real `@click` beside it — so these pin the scan as tolerant.
+// The five rows are the shapes that a strict, JSX-style scanner drops.
+const TEMPLATE_ATTRS_CONTENT = `
+<div x-data="{ open: false }">
+  <button @if($cond) disabled @endif @click="open = !open">Blade</button>
+  <button {{ attrs }} @click="open = !open">Twig</button>
+  <button {% if cond %}disabled{% endif %} @click="open = !open">Liquid</button>
+  <button <%= attrs %> @click="open = !open">EJS</button>
+  <button <?php echo $attrs; ?> @click="open = !open">PHP</button>
+</div>
+`.trim();
+
+// A `<` in body text is a less-than sign, not a tag opener. Pins the one
+// strictness the HTML scan keeps from the JSX one: a second `<` inside a
+// candidate region proves the first wasn't a tag, so neither of these opens a
+// range and the `x-axis` between them stays unreported.
+const PROSE_COMPARISON_CONTENT = `
+<div x-data="{ n: 0 }">
+  <p>If a <b and c <d, the x-axis label is wrong.</p>
+</div>
+`.trim();
+
 function waitFor<T>(
 	check: () => T | undefined,
 	timeoutMs = 3000,
@@ -516,6 +579,95 @@ for (const language of HTML_LANGUAGES) {
 				diags.length,
 				0,
 				`[${language}] Expected no Alpine diagnostics for wire:* attributes, got: ${diags.map(d => d.message).join('; ')}`,
+			);
+		});
+
+		test('Prose, script bodies and HTML comments produce no diagnostics', async () => {
+			const doc = await openDoc(language, NON_ATTRIBUTE_CONTENT);
+			const diags = await alpineDiagnosticsAfterDebounce(doc.uri);
+
+			assert.strictEqual(
+				diags.length,
+				0,
+				`[${language}] Expected no Alpine diagnostics for x-axis/x-ray/x-y/x-large/x-offset outside any tag, got: ${diags.map(d => d.message).join('; ')}`,
+			);
+		});
+
+		test('A real typo among prose is still reported', async () => {
+			const doc = await openDoc(language, TYPO_AMONG_PROSE_CONTENT);
+			const diags = await getAlpineDiagnostics(doc.uri);
+
+			assert.deepStrictEqual(
+				diags.map(d => d.code),
+				['unknown-directive'],
+				`[${language}] Expected exactly one diagnostic, got: ${diags.map(d => d.message).join('; ')}`,
+			);
+			assert.ok(
+				diags[0].message.includes("'x-dat'"),
+				`[${language}] Expected the x-dat typo to be the one reported, got: ${diags[0].message}`,
+			);
+		});
+
+		test('A typo inside commented-out markup is not reported', async () => {
+			const doc = await openDoc(language, COMMENTED_MARKUP_CONTENT);
+			const diags = await alpineDiagnosticsAfterDebounce(doc.uri);
+
+			assert.strictEqual(
+				diags.length,
+				0,
+				`[${language}] Expected no Alpine diagnostics inside an HTML comment, got: ${diags.map(d => d.message).join('; ')}`,
+			);
+		});
+
+		test('@click in commented-out markup still hovers', async () => {
+			const doc = await openDoc(language, COMMENTED_MARKUP_CONTENT);
+			const offset = COMMENTED_MARKUP_CONTENT.indexOf('@click') + 3;
+			const text = await hoverTextAt(doc, offset);
+
+			assert.ok(
+				text.includes('shorthand for'),
+				`[${language}] Expected the Alpine shorthand hover on commented-out markup, got: ${text}`,
+			);
+		});
+
+		test('Template syntax inside a tag does not hide a real @click', async () => {
+			const doc = await openDoc(language, TEMPLATE_ATTRS_CONTENT);
+
+			for (const row of ['Blade', 'Twig', 'Liquid', 'EJS', 'PHP']) {
+				const rowEnd = TEMPLATE_ATTRS_CONTENT.indexOf(`>${row}<`);
+				const offset = TEMPLATE_ATTRS_CONTENT.lastIndexOf('@click', rowEnd) + 3;
+				const text = await hoverTextAt(doc, offset);
+
+				assert.ok(
+					text.includes('shorthand for'),
+					`[${language}] Expected the Alpine shorthand hover on the ${row} row's @click, got: ${text}`,
+				);
+			}
+		});
+
+		test('An unescaped `<` in prose does not open a tag', async () => {
+			const doc = await openDoc(language, PROSE_COMPARISON_CONTENT);
+			const diags = await alpineDiagnosticsAfterDebounce(doc.uri);
+
+			assert.strictEqual(
+				diags.length,
+				0,
+				`[${language}] Expected no Alpine diagnostics after a less-than in body text, got: ${diags.map(d => d.message).join('; ')}`,
+			);
+		});
+
+		test('Hovering the word x-for in prose still shows its documentation', async () => {
+			// Deliberate: hover only ever matches known directive names, so it
+			// can't produce the noise the diagnostic did, and explaining
+			// `x-for` where someone wrote about it is useful. v1.7.3 narrowed
+			// the diagnostic without touching this.
+			const content = '<div x-data="{}">\n  <p>Use the x-for directive to loop.</p>\n</div>';
+			const doc = await openDoc(language, content);
+			const text = await hoverTextAt(doc, content.indexOf('x-for') + 2);
+
+			assert.ok(
+				text.includes('x-for'),
+				`[${language}] Expected x-for documentation when hovering the word in prose, got: ${text}`,
 			);
 		});
 	});

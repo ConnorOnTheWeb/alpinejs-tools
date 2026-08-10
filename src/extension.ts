@@ -14,6 +14,7 @@ import { createAlpineCodeActionProvider } from './codeActionProvider';
 import { createJsxCompletionProvider, type AlpineAttr } from './jsxCompletionProvider';
 import { ALPINE_LANGUAGES, isJsxLanguage } from './constants';
 import { isInsideJsxTagAt } from './jsxDocument';
+import { isInsideHtmlTagAt } from './htmlDocument';
 import { JSX_DIRECTIVE_VALUE_RE } from './jsxContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -162,58 +163,16 @@ const BIND_MODIFIERS: ModifierDef[] = [
 ];
 
 /**
- * Rough check for whether `position` sits inside an HTML tag's angle
- * brackets (`<tag ...|...>`) rather than in body text between tags.
+ * Language-aware "is `position` inside a tag's attribute region?".
+ *
  * Alpine's bare `@`/`:` shorthand is only ever valid as an attribute name;
  * other template languages also use `@` as a body-text directive prefix
  * (e.g. Blade's `@foreach`, `@if`, `@csrf`), which only ever appear between
- * tags, never inside one — so this distinguishes the two without needing a
- * real HTML parser. Scans backward for the nearest unmatched `<` or `>`.
- */
-function isInsideTagAngleBrackets(
-	document: vscode.TextDocument,
-	position: vscode.Position,
-): boolean {
-	const textBefore = document.getText(
-		new vscode.Range(new vscode.Position(0, 0), position),
-	);
-	// Inside <script> and <style> the content is JavaScript or CSS, where `<`
-	// is a comparison operator rather than a tag opener. `if (a < b) { }`
-	// followed by anything shorthand-shaped — `{ 'a':b }` — would otherwise
-	// leave the scan pointing at that `<` and report "inside a tag".
-	if (isInsideRawTextElement(textBefore)) { return false; }
-	return textBefore.lastIndexOf('<') > textBefore.lastIndexOf('>');
-}
-
-/** HTML elements whose content is not markup. */
-const RAW_TEXT_ELEMENTS = ['script', 'style'];
-
-/**
- * True when the end of `textBefore` sits inside a `<script>` or `<style>`
- * element's body. Being inside the element's own opening tag doesn't count —
- * that really is a tag, and an Alpine attribute could legitimately live there.
- */
-function isInsideRawTextElement(textBefore: string): boolean {
-	const lower = textBefore.toLowerCase();
-	for (const tag of RAW_TEXT_ELEMENTS) {
-		const open = lower.lastIndexOf(`<${tag}`);
-		if (open === -1) { continue; }
-		// Still within `<script …` itself, before its `>`.
-		const openEnd = lower.indexOf('>', open);
-		if (openEnd === -1) { continue; }
-		if (lower.lastIndexOf(`</${tag}`) < openEnd) { return true; }
-	}
-	return false;
-}
-
-/**
- * Language-aware "is `position` inside a tag's attribute region?".
+ * tags, never inside one — so this distinguishes the two.
  *
- * HTML-family documents use the angle-bracket scan above. JSX-family documents
- * can't: there `<` is also the less-than operator and the generic-argument
- * delimiter, and `=>` scatters `>` through the file, so the scan reports "yes"
- * across large stretches of ordinary TypeScript. They use the structural
- * scanner in jsxContext.ts instead.
+ * Both families walk the whole document once and cache the resulting tag
+ * ranges, but they find them differently, because `<` means different things
+ * in the two: see the header comments in htmlContext.ts and jsxContext.ts.
  */
 function isInsideTag(
 	document: vscode.TextDocument,
@@ -222,7 +181,7 @@ function isInsideTag(
 	if (isJsxLanguage(document.languageId)) {
 		return isInsideJsxTagAt(document, position);
 	}
-	return isInsideTagAngleBrackets(document, position);
+	return isInsideHtmlTagAt(document, position);
 }
 
 /**
@@ -230,10 +189,12 @@ function isInsideTag(
  * position (e.g. `x-model.`, `@click.stop.`, `x-on:keydown.enter.`).
  * Returns the directive base and already-applied modifier names.
  *
- * `insideTag` gates the bare `@`/`:` alternatives (see
- * `isInsideTagAngleBrackets`) — the `x-`-prefixed alternatives aren't
- * affected since no supported template language uses `x-model`/`x-on:`/
- * `x-bind:` as its own body-text syntax.
+ * `insideTag` gates the bare `@`/`:` alternatives (see `isInsideTag`) — the
+ * `x-`-prefixed alternatives aren't affected, since no supported template
+ * language uses `x-model`/`x-on:`/`x-bind:` as its own body-text syntax. That
+ * reasoning is about *template syntax* colliding with Alpine's, and it holds;
+ * it is not a claim that `x-…` text outside a tag is always a directive, which
+ * is the mistake the v1.7.3 diagnostic fix corrects.
  */
 function detectModifierContext(
 	linePrefix: string,
@@ -391,7 +352,7 @@ export function activate(context: vscode.ExtensionContext): void {
 					position,
 					/@[\w.-]+/,
 				);
-				if (atRange && isInsideTagAngleBrackets(document, atRange.start)) {
+				if (atRange && isInsideHtmlTagAt(document, atRange.start)) {
 					const attr = attrMap.get('x-on');
 					if (attr) {
 						const eventName = document.getText(atRange).slice(1).split('.')[0];
@@ -414,7 +375,7 @@ export function activate(context: vscode.ExtensionContext): void {
 					position,
 					/(?<![\w-]):[\w.-]+/,
 				);
-				if (colonRange && isInsideTagAngleBrackets(document, colonRange.start)) {
+				if (colonRange && isInsideHtmlTagAt(document, colonRange.start)) {
 					const attr = attrMap.get('x-bind');
 					if (attr) {
 						const propName = document

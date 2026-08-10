@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.7.3] — 2026-08-09
+
+### Fixed
+
+- **The unknown-directive warning fired on ordinary English.** `<p>Values are plotted along the x-axis of the chart.</p>` reported `Unknown Alpine.js directive 'x-axis'`, as did `x-ray` in prose, `const diff = x-y > 0` and `let size = x-large` in a `<script>` block, and `<!-- TODO: fix the x-offset calculation -->` in a comment. Any hyphenated word beginning with `x-` and standing alone was flagged, in all eight HTML-family languages.
+
+  The two regex guards added in v1.4.1 couldn't catch this. `(?<=\s)` and `(?=[=\s>]|$)` were built to reject *fragments* — the `x-1/2` inside `translate-x-1/2` fails both — and a hyphenated English word standing alone in a sentence is not a fragment. It satisfies them exactly the way `x-data` does, because at the level of a regex the two are indistinguishable. No further guard would have helped: the guards enumerate ways text can fail to be an attribute, and that set has no end.
+
+  The invariant that does settle it is the one the `@` and `:` shorthands have enforced since v1.6.2 — Alpine syntax is only ever an attribute name. The x-* diagnostic never got it. Its tag-range check existed, but the ranges were only ever computed for JSX, where the surrounding document is JavaScript and the need was obvious; in HTML-family languages the variable stayed `undefined`, the check quietly became a no-op, and the regex ran over the whole document, prose and script bodies and comments included. Both families now compute ranges, and the diagnostic reports only inside an opening tag's attribute region.
+
+- **`>` inside a quoted attribute value hid the shorthand hover on attributes after it.** In `<div x-text="a > b" @click="go">`, the backward scan that answered "am I inside a tag?" stopped at the `>` in the attribute value and concluded the `@click` was body text, so it got no hover. Same for `<%= … %>` and `<?php … ?>` in EJS and PHP, whose closing delimiters end in `>`.
+
+### Changed
+
+- **One tag scan per HTML document, replacing the backward scan per lookup.** `isInsideTagAngleBrackets` ran `getText(0..position)` on every call, so answering it once per regex match would have been quadratic in document length. HTML-family documents now get a single forward scan (`htmlContext.ts`), cached per document version alongside the JSX one (`tagRanges.ts`), which every provider shares — the same treatment JSX got in v1.7.0.
+
+  The HTML scan is deliberately **not** a copy of the JSX one. `jsxContext.ts` discards a `<` the moment it sees a character that can't appear in a tag, because in JavaScript `<` is also the less-than operator and a wrong "yes" is the common failure. In HTML the common failure is the opposite. Blade's `@if($cond)`, Twig's `{{ attrs }}`, Liquid's `{% if %}`, EJS's `<%= attrs %>` and PHP's `<?php … ?>` all appear between a tag name and its `>`, and a scanner that rejected on the `(` or the `<` would discard the whole tag and take the real `@click` beside it with it. Checked before deciding: a strict scan drops all five of those, so the HTML scan skips what markup and the template layer say to skip and otherwise keeps looking for the `>`. Each of the five is now a test.
+
+  The one strictness kept is that a second `<` inside a candidate region rejects it, so `<p>If a <b and c <d, the x-axis label is wrong.</p>` stays body text. Template constructs are skipped outside tags too, not just inside them: `<% if (a<b) { %>` would otherwise open a bogus region running to the next `>`.
+
+- **Commented-out markup is now the one place the diagnostics and hover deliberately disagree.** A typo inside `<!-- … -->` is no longer reported, because a warning about code you commented out is noise you didn't ask for; hovering `@click` in that same markup still works, because hover only ever answers where the cursor already is. That's one flag on one scanner rather than two implementations that drift apart, which is how the x-* path came to be missing the guard the shorthands had.
+
+  Hover on `x-*` is otherwise untouched: hovering the words "x-for" in a sentence like "use the x-for directive" still shows the `x-for` documentation, and there is now a test saying so. Hover only ever matches known directive names, so it cannot produce the prose noise the diagnostic did.
+
+  Verified by running the five reported cases, a genuine typo (`x-dat`), a real directive (`x-data`), commented-out markup, template syntax inside a tag, and the v1.4.1 / v1.5.0 / v1.6.1 / v1.6.2 / v1.7.0 regressions across all eight HTML-family suites and all three JSX ones.
+
+---
+
 ## [1.7.2] — 2026-08-09
 
 ### Fixed

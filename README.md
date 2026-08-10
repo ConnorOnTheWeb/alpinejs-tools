@@ -57,6 +57,7 @@ Already-applied modifiers in a chain are filtered out automatically.
 Any `x-*` attribute that isn't a recognised Alpine core or plugin directive is underlined with a Warning. A "did you mean" hint is shown when a close match exists.
 
 - Core directives (`x-data`, `x-show`, `x-model`, … all 18) and official plugin directives are never flagged.
+- Only attribute names are checked. Hyphenated words in body text ("plotted along the x-axis"), `<script>` and `<style>` bodies, HTML comments, and the JavaScript around a JSX tag are never flagged.
 - Diagnostics are debounced 500 ms and cleared as you type.
 - **Quick Fix** — a lightbulb action offers `Replace with 'x-data'` in one click when a suggestion is available.
 
