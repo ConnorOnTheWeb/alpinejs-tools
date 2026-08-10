@@ -22,7 +22,7 @@ import * as vscode from 'vscode';
  */
 const SCAN_EXTENSIONS = [
 	'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs',
-	'html', 'liquid', 'jinja', 'jinja2', 'j2',
+	'html', 'liquid', 'jinja', 'jinja2', 'j2', 'astro',
 ] as const;
 
 /**

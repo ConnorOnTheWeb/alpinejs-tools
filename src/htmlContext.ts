@@ -68,6 +68,36 @@ const TEMPLATE_CONSTRUCTS: readonly (readonly [string, string])[] = [
 ];
 
 /**
+ * Length of a leading front-matter block, or 0 when the file doesn't open with
+ * one. The scan starts past it.
+ *
+ * Astro puts TypeScript there, fenced by `---`, and it is the only JavaScript
+ * region in these languages that isn't delimited by a tag — so nothing else in
+ * this module would skip it, and a comparison like `const wide = cols<bp;`
+ * followed by `const diff = x-y > 0;` opens a region that swallows the `x-y`
+ * and reports it as a directive. Jekyll, Hugo and Eleventy put YAML in the
+ * same fence in `.html` and `.liquid` files, which is equally not markup, so
+ * this is keyed on the fence rather than on the language.
+ *
+ * The closing fence must be a line of its own containing exactly `---`. With
+ * no closing fence there is no front matter, and nothing is skipped — a stray
+ * `---` at the top of a file must not blank the rest of it.
+ */
+function frontmatterEnd(text: string): number {
+	const open = /^\s*---[ \t]*\r?\n/.exec(text);
+	if (!open) { return 0; }
+
+	let i = open[0].length;
+	while (i < text.length) {
+		const eol = text.indexOf('\n', i);
+		const line = (eol === -1 ? text.slice(i) : text.slice(i, eol)).trim();
+		if (line === '---') { return eol === -1 ? text.length : eol + 1; }
+		i = eol === -1 ? text.length : eol + 1;
+	}
+	return 0;
+}
+
+/**
  * If a template construct opens at `i`, the index just past its close
  * (or end-of-text if it never closes). `-1` when none opens here.
  */
@@ -152,7 +182,7 @@ export function findHtmlTagRanges(
 ): TagRange[] {
 	const ranges: TagRange[] = [];
 	const lower = text.toLowerCase();
-	let i = 0;
+	let i = frontmatterEnd(text);
 
 	while (i < text.length) {
 		if (!options.includeComments && text.startsWith('<!--', i)) {

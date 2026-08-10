@@ -20,6 +20,7 @@ const LANGUAGE_EXTENSIONS = [
 	'onecentlin.laravel-blade',                // blade
 	'sissel.shopify-liquid',                   // liquid
 	'samuelcolvin.jinjahtml',                  // jinja-html
+	'astro-build.astro-vscode',                // astro
 ];
 
 export default defineConfig({

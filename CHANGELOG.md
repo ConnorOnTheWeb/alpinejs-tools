@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.7.5] — 2026-08-09
+
+### Added
+
+- **Full Astro support.** `astro` joins the supported languages, so `.astro` files get everything the other markup languages get rather than only the syntax highlighting added in v1.7.4: hover documentation, magic-property and modifier completions, `x-data` property completions, unknown-directive diagnostics with quick fixes, go to definition, directive-name IntelliSense and snippets. `.astro` files are also swept for `Alpine.data()` and `Alpine.store()` registrations, so a store registered in a component's frontmatter shows up in `$store.` completions.
+
+  Astro belongs with the HTML family rather than with JSX, despite its frontmatter being TypeScript. An `.astro` template is markup, `@click` and `:class` are ordinary attribute names in it — Astro passes attributes through to HTML rather than claiming those names the way Vue does — and its own `client:load`, `transition:animate` and `set:html` are already safe from the `:` shorthand check for the same reason `wire:model` is (v1.6.1). All 26 of the HTML-family tests passed against a real Astro host before a line of Astro-specific code was written, which is what made this a small change rather than the JSX-sized one it looked like.
+
+- **Directive-name IntelliSense and snippets reach Astro through a provider, not the manifest.** The other markup languages get both declaratively, from `contributes.html/customData` and `contributes.snippets`. Neither works here. Custom data is read only by VS Code's own HTML language service, and `.astro` is served by Astro's — asking for completions inside a real `.astro` tag returns Astro's attribute list (`class:list`, `set:html`, `transition:animate`) with nothing of Alpine's in it. That was found by writing the test first and watching it fail, rather than by assuming the contribution carried over; without it this release would have claimed a feature it didn't have. A snippet contribution wouldn't have been right either, since it has no context field and would offer `x-data="{ }"` inside the TypeScript frontmatter.
+
+  JSX already needed both served by a provider for its own reasons, so `jsxCompletionProvider.ts` became `attributeCompletionProvider.ts` and takes the three things that differ per family: the languages to register for, the "inside a tag" test, and the snippet body rewrite (JSX turns `:key="…"` into `x-bind:key="…"`; Astro leaves it, because there it's a valid attribute name). One implementation, two registrations, and the gating comes along with it — directive names are offered inside an Astro tag and not in its frontmatter, which is covered by tests in both directions.
+
+- **Front matter is no longer scanned for directives.** A `---` fenced block at the top of a file is front matter in every ecosystem that uses one, and it is never markup. This is what Astro needed: its frontmatter is the only JavaScript region in these languages that no tag delimits, so nothing else in the scan would have skipped it, and `const wide = cols<breakpoint;` followed by `const diff = x-y > 0;` opened a region that swallowed the `x-y` and reported it as an unknown directive.
+
+  The rule is keyed on the fence rather than on the language, so YAML front matter in Jekyll, Hugo and Eleventy templates — `.html` and `.liquid` files that have always been supported — is skipped too, and markup inside a frontmatter string (`const tpl = '<div x-dat="a"></div>'`) is left alone with it. The closing fence must be a line containing exactly `---`; with no closing fence nothing is skipped, so a stray `---` at the top of a file can't blank the rest of it.
+
+  Worth being precise about the size of the problem this solved, because the fix is five lines and the risk was smaller than it first appeared. Measured against the real scanner, one of six realistic frontmatter shapes triggered a false positive. `Map<string, number>` doesn't, because the generic closes its own `>`. `const gap = x-y;` doesn't, because the trailing `;` fails the directive regex's `(?=[=\s>]|$)` guard. It takes a `<` immediately followed by a letter *and* an `x-…` token before the next `>` — which is exactly the shape a TypeScript comparison produces.
+
+### Changed
+
+- **The README tagline lists Astro.** It reads "syntax highlighting, hover documentation, IntelliSense completions, and snippets — across …", which distributes all four over every language named, so Astro was deliberately left out of it in v1.7.4 when only the first was true.
+
+---
+
 ## [1.7.4] — 2026-08-09
 
 ### Added

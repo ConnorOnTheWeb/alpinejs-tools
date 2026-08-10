@@ -8,6 +8,7 @@ const EXTENSION_ID = 'connorontheweb.alpinejs-tools';
 // family, since `@click` / `:class` are syntax errors in JSX.
 const HTML_LANGUAGES = [
 	'html', 'ejs', 'php', 'twig', 'nunjucks', 'blade', 'liquid', 'jinja-html',
+	'astro',
 ] as const;
 
 const JSX_LANGUAGES = ['javascript', 'javascriptreact', 'typescriptreact'] as const;
@@ -117,6 +118,35 @@ const TEMPLATE_ATTRS_CONTENT = `
 const PROSE_COMPARISON_CONTENT = `
 <div x-data="{ n: 0 }">
   <p>If a <b and c <d, the x-axis label is wrong.</p>
+</div>
+`.trim();
+
+// A `---` fenced block at the top of a file is front matter, never markup:
+// TypeScript in Astro, YAML in Jekyll/Hugo/Eleventy. It is the only
+// non-markup region in these languages that no tag delimits, so the scan has
+// to skip it explicitly. `cols<breakpoint` would otherwise open a region that
+// runs to the `>` on the next line and swallows the `x-y` between them.
+// The typo below the fence must still be reported, so this pins both halves.
+const FRONTMATTER_CONTENT = `
+---
+const wide = cols<breakpoint;
+const diff = x-y > 0;
+---
+<div x-data="{ count: 0 }">
+  <span x-dat="count"></span>
+</div>
+`.trim();
+
+// Astro's own namespaced attributes have the same shape as Alpine's `:`
+// shorthand for x-bind. Same false-positive family as wire:model (v1.6.1),
+// and safe for the same reason — the colon has a word character before it.
+const ASTRO_DIRECTIVE_CONTENT = `
+---
+const content = '<p>hi</p>';
+---
+<Card client:load transition:animate="slide" set:html={content} />
+<div x-data="{ open: false }">
+  <button @click="open = !open">Toggle</button>
 </div>
 `.trim();
 
@@ -656,6 +686,17 @@ for (const language of HTML_LANGUAGES) {
 			);
 		});
 
+		test('Front matter is not scanned, but the markup below it is', async () => {
+			const doc = await openDoc(language, FRONTMATTER_CONTENT);
+			const diags = await getAlpineDiagnostics(doc.uri);
+
+			assert.deepStrictEqual(
+				diags.map(d => d.message.match(/'(x-[\w-]+)'/)?.[1]),
+				['x-dat'],
+				`[${language}] Expected only the x-dat typo below the fence, got: ${diags.map(d => d.message).join('; ')}`,
+			);
+		});
+
 		test('Hovering the word x-for in prose still shows its documentation', async () => {
 			// Deliberate: hover only ever matches known directive names, so it
 			// can't produce the noise the diagnostic did, and explaining
@@ -672,6 +713,114 @@ for (const language of HTML_LANGUAGES) {
 		});
 	});
 }
+
+// ─── Astro ────────────────────────────────────────────────────────────────────
+
+// Astro runs the full HTML-family suite above. These cover the two things only
+// it has: namespaced attributes of its own, and a TypeScript frontmatter block
+// that everything below has to keep working past.
+suite('Language: astro (Astro-specific)', () => {
+	suiteSetup(async () => {
+		const ext = vscode.extensions.getExtension(EXTENSION_ID);
+		await ext?.activate();
+	});
+
+	test('Astro namespaced attributes are not treated as the Alpine `:` shorthand', async () => {
+		const doc = await openDoc('astro', ASTRO_DIRECTIVE_CONTENT);
+
+		for (const attr of ['client:load', 'transition:animate', 'set:html']) {
+			const offset = ASTRO_DIRECTIVE_CONTENT.indexOf(attr) + attr.indexOf(':') + 2;
+			const text = await hoverTextAt(doc, offset);
+
+			assert.ok(
+				!text.includes('shorthand for'),
+				`[astro] Expected no Alpine shorthand hover on ${attr}, got: ${text}`,
+			);
+		}
+	});
+
+	test('Astro namespaced attributes produce no diagnostics', async () => {
+		const doc = await openDoc('astro', ASTRO_DIRECTIVE_CONTENT);
+		const diags = await alpineDiagnosticsAfterDebounce(doc.uri);
+
+		assert.strictEqual(
+			diags.length,
+			0,
+			`[astro] Expected no Alpine diagnostics for client:load/set:html, got: ${diags.map(d => d.message).join('; ')}`,
+		);
+	});
+
+	test('@click below a frontmatter block still resolves', async () => {
+		const doc = await openDoc('astro', ASTRO_DIRECTIVE_CONTENT);
+		const offset = ASTRO_DIRECTIVE_CONTENT.indexOf('@click') + 3;
+		const text = await hoverTextAt(doc, offset);
+
+		assert.ok(
+			text.includes('shorthand for'),
+			`[astro] Expected the Alpine shorthand hover below the fence, got: ${text}`,
+		);
+	});
+
+	test('Directive names complete inside an Astro tag', async () => {
+		// `html/customData` supplies this in the other markup languages, but it
+		// is read by VS Code's own HTML language service and `.astro` is served
+		// by Astro's, so this is the check that the contribution actually
+		// reaches the language rather than the assumption that it does.
+		const content = '---\nconst a = 1;\n---\n<div x-></div>';
+		const doc = await openDoc('astro', content);
+		const items = await completionsAt(doc, content.indexOf('<div x-') + 7);
+		const directives = items.filter(i => i.detail === 'Alpine.js directive');
+
+		assert.ok(
+			labelsOf(directives).includes('x-data'),
+			`[astro] Expected an x-data directive completion, got: ${labelsOf(directives).join(', ')}`,
+		);
+	});
+
+	test('Snippets are offered in an Astro document', async () => {
+		// Filtered to our own items: VS Code's word-based suggestions offer
+		// every word already in the document, so asserting on the bare label
+		// would pass whether or not the snippet was ever contributed.
+		const content = 'alpine-dat';
+		const doc = await openDoc('astro', content);
+		const items = await completionsAt(doc, content.length);
+		const snippets = items.filter(i => i.detail === 'Alpine.js snippet');
+
+		assert.ok(
+			labelsOf(snippets).includes('alpine-data'),
+			`[astro] Expected the alpine-data snippet, got: ${labelsOf(snippets).join(', ')}`,
+		);
+	});
+
+	test('Directive names are not offered inside the frontmatter block', async () => {
+		// The frontmatter is TypeScript. This is the gating that an ungated
+		// `contributes.snippets` registration for `astro` could not have done.
+		const content = '---\nconst x-\n---\n<div></div>';
+		const doc = await openDoc('astro', content);
+		const items = await completionsAt(doc, content.indexOf('x-') + 2);
+		const directives = items.filter(i => i.detail === 'Alpine.js directive');
+
+		assert.strictEqual(
+			directives.length,
+			0,
+			`[astro] Expected no directive completions in frontmatter, got: ${labelsOf(directives).join(', ')}`,
+		);
+	});
+
+	test('Markup inside a frontmatter string is not scanned', async () => {
+		// `const content = '<p>hi</p>'` is TypeScript, not markup. Pins that
+		// the fence skip covers strings that happen to contain tags.
+		const content = "---\nconst tpl = '<div x-dat=\"a\"></div>';\n---\n<div x-data=\"{}\"></div>";
+		const doc = await openDoc('astro', content);
+		const diags = await alpineDiagnosticsAfterDebounce(doc.uri);
+
+		assert.strictEqual(
+			diags.length,
+			0,
+			`[astro] Expected no Alpine diagnostics for markup inside a frontmatter string, got: ${diags.map(d => d.message).join('; ')}`,
+		);
+	});
+});
 
 // ─── JSX / TSX ────────────────────────────────────────────────────────────────
 
@@ -810,7 +959,7 @@ for (const language of JSX_LANGUAGES) {
 
 		test('Directive names complete inside a JSX tag', async () => {
 			// html/customData supplies this in HTML-family languages but is
-			// never read for .jsx/.tsx, so it comes from jsxCompletionProvider.
+			// never read for .jsx/.tsx, so it comes from attributeCompletionProvider.
 			const content = 'export const A = () => <div x-></div>;';
 			const doc = await openDoc(language, content);
 			const items = await completionsAt(doc, content.indexOf('x-') + 2);

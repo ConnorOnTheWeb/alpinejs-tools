@@ -11,8 +11,13 @@ import {
 } from './workspaceScanner';
 import { createAlpineDiagnosticProvider } from './diagnosticProvider';
 import { createAlpineCodeActionProvider } from './codeActionProvider';
-import { createJsxCompletionProvider, type AlpineAttr } from './jsxCompletionProvider';
-import { ALPINE_LANGUAGES, isJsxLanguage } from './constants';
+import {
+	createAttributeCompletionProvider,
+	toJsxSnippetBody,
+	toMarkupSnippetBody,
+	type AlpineAttr,
+} from './attributeCompletionProvider';
+import { ALPINE_LANGUAGES, JSX_LANGUAGES, isJsxLanguage } from './constants';
 import { isInsideJsxTagAt } from './jsxDocument';
 import { isInsideHtmlTagAt } from './htmlDocument';
 import { JSX_DIRECTIVE_VALUE_RE } from './jsxContext';
@@ -275,7 +280,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	// Snippet bodies, shared with the `contributes.snippets` registration that
 	// serves the HTML-family languages. JSX can't use that mechanism (see
-	// jsxCompletionProvider.ts), so it reads the same file and serves the
+	// attributeCompletionProvider.ts), so it reads the same file and serves the
 	// snippets through a context-gated completion provider instead.
 	const snippetPath = context.asAbsolutePath(
 		path.join('snippets', 'alpine.code-snippets'),
@@ -648,7 +653,18 @@ export function activate(context: vscode.ExtensionContext): void {
 	// ── 4b. Directive-name + snippet completions for JSX ──────────────────────
 	// HTML-family languages get these from `contributes.html/customData` and
 	// `contributes.snippets`; neither reaches a `.jsx`/`.tsx` document.
-	createJsxCompletionProvider(context, alpineData.globalAttributes, alpineSnippets);
+	// JSX and Astro both need this served by a provider rather than declared in
+	// package.json, for different reasons — see attributeCompletionProvider.ts.
+	createAttributeCompletionProvider(context, alpineData.globalAttributes, alpineSnippets, {
+		languages: JSX_LANGUAGES,
+		isInsideTag: isInsideJsxTagAt,
+		rewriteBody: toJsxSnippetBody,
+	});
+	createAttributeCompletionProvider(context, alpineData.globalAttributes, alpineSnippets, {
+		languages: ['astro'],
+		isInsideTag: isInsideHtmlTagAt,
+		rewriteBody: toMarkupSnippetBody,
+	});
 
 	// ── 5. Code actions — quick fix for unknown directives ────────────────────
 	createAlpineCodeActionProvider(context);

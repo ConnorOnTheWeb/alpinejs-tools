@@ -18,9 +18,19 @@
  *   structural scanner in jsxContext.ts instead.
  */
 
-/** Languages whose documents are HTML markup (possibly with a template layer). */
+/**
+ * Languages whose documents are HTML markup (possibly with a template layer).
+ *
+ * `astro` belongs here rather than with JSX: an `.astro` template is markup,
+ * `@click` and `:class` are ordinary attribute names in it, and its own
+ * `client:load` / `set:html` directives are already safe from the `:`
+ * shorthand check for the same reason `wire:model` is. Its TypeScript
+ * frontmatter is the one part that isn't markup, and the tag scan skips it
+ * (see `frontmatterEnd` in htmlContext.ts).
+ */
 export const HTML_LANGUAGES = [
 	'html', 'ejs', 'php', 'twig', 'nunjucks', 'blade', 'liquid', 'jinja-html',
+	'astro',
 ] as const;
 
 /**

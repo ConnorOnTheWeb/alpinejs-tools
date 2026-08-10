@@ -1,6 +1,6 @@
 # Alpine.js Tools
 
-The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja2, and JSX/TSX.
+The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja2, Astro, and JSX/TSX.
 
 [![VS Marketplace](https://vsmarketplacebadges.dev/version/connorontheweb.alpinejs-tools.svg)](https://marketplace.visualstudio.com/items?itemName=connorontheweb.alpinejs-tools) [![License](https://img.shields.io/github/license/connorontheweb/alpinejs-tools)](https://github.com/connorontheweb/alpinejs-tools/blob/main/LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
@@ -37,7 +37,7 @@ Type `$` inside any Alpine expression to get completions for all Alpine magic pr
 
 After `$refs.` — completions list every `x-ref` name declared in the current file.
 
-After `$store.` — completions list every `Alpine.store('name', ...)` registration found in workspace JS/JSX/TS/TSX/HTML/Liquid/Jinja files (backed by a file-system watcher).
+After `$store.` — completions list every `Alpine.store('name', ...)` registration found in workspace JS/JSX/TS/TSX/HTML/Astro/Liquid/Jinja files (backed by a file-system watcher).
 
 ### Modifier completions
 
@@ -63,7 +63,7 @@ Any `x-*` attribute that isn't a recognised Alpine core or plugin directive is u
 
 ### Go to Definition for Alpine components
 
-Press **F12** (or Ctrl+Click) anywhere inside `x-data="componentName"` to jump directly to the `Alpine.data('componentName', ...)` registration in your workspace JS/JSX/TS/TSX/HTML/Liquid/Jinja files. Multiple registration sites are all shown. Inline object literals (`x-data="{ open: false }"`) are intentionally skipped.
+Press **F12** (or Ctrl+Click) anywhere inside `x-data="componentName"` to jump directly to the `Alpine.data('componentName', ...)` registration in your workspace JS/JSX/TS/TSX/HTML/Astro/Liquid/Jinja files. Multiple registration sites are all shown. Inline object literals (`x-data="{ open: false }"`) are intentionally skipped.
 
 ### Plugin directive completions
 
@@ -93,7 +93,7 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 ### Snippets
 
-42 snippets available in HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja-HTML, JavaScript, and JSX/TSX:
+42 snippets available in HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja-HTML, Astro, JavaScript, and JSX/TSX:
 
 **Directive attributes** — `x-data`, `x-init`, `x-show`, `x-bind`, `x-on`, `x-text`, `x-html`, `x-model`, `x-for`, `x-transition`, `x-transition-classes` (all six `enter`/`leave` phases), `x-effect`, `x-ref`, `x-if`, `x-teleport`, `x-id`
 
@@ -109,17 +109,19 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 ## Supported languages
 
-`html` · `ejs` · `php` · `twig` · `nunjucks` · `blade` · `liquid` · `jinja-html` · `javascript` · `javascriptreact` · `typescriptreact`
+`html` · `ejs` · `php` · `twig` · `nunjucks` · `blade` · `liquid` · `jinja-html` · `astro` · `javascript` · `javascriptreact` · `typescriptreact`
 
 Jinja2 templates that use the plain `.html` extension (the common Flask/Django case) are already covered by the `html` language support — no Jinja extension required for those files.
 
-### Astro (syntax highlighting only)
+### Astro
 
-`.astro` files get JavaScript syntax highlighting inside Alpine directive values, the same as the languages above. The rest of the feature set — hover documentation, completions, unknown-directive diagnostics, go to definition — is **not** enabled in `.astro` yet, and is tracked for a later release.
+`.astro` files get the full feature set, the same as the other markup languages — `@click` and `:class` shorthands included, since Astro passes attributes straight through to HTML rather than claiming those names for itself. Requires the official [Astro extension](https://marketplace.visualstudio.com/items?itemName=astro-build.astro-vscode) for the `.astro` language itself.
 
-The reason is the frontmatter. Every `.astro` file opens with a `---` fenced block of TypeScript, and unlike a `<script>` block it isn't delimited by tags, so the scan that decides where an attribute can appear doesn't yet know to skip it. Enabling the providers before that would report `const gap = x-y;` in your frontmatter as an unknown directive. Highlighting has no such problem: it is anchored to Astro's own tag scopes, so it can only reach inside a real tag.
+The `---` frontmatter block is skipped. It's TypeScript, not markup, and it's the only JavaScript region in a template language that no tag delimits — so without that, `const diff = x-y > 0` in your frontmatter would be reported as an unknown directive. YAML frontmatter in Jekyll, Hugo and Eleventy templates is skipped by the same rule.
 
-Requires the official [Astro extension](https://marketplace.visualstudio.com/items?itemName=astro-build.astro-vscode) for the `.astro` language itself. Astro's own scoped attributes (`client:load`, `transition:animate`, `set:html`) are left alone.
+Astro's own namespaced attributes are left alone: `client:load`, `transition:animate` and `set:html` are not read as Alpine's `:` shorthand, for the same reason `wire:model` isn't.
+
+One limitation. An expression container (`x-data={cart}`) holds TypeScript that Astro evaluates, so completions stay out of it, exactly as they do in JSX. Use `x-data="{ open: false }"` for anything you want IntelliSense inside. Alpine directives written inside an Astro expression (`{items.map((i) => <li x-text="i" />)}`) are recognised normally, since that really is markup.
 
 ### JSX and TSX
 
