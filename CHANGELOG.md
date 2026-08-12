@@ -1,5 +1,54 @@
 # Changelog
 
+## [1.8.0] — 2026-08-12
+
+### Added
+
+- **Settings, for the first time.** The extension contributed no `configuration` block at all and called `getConfiguration` nowhere, so every feature was unconditionally on. That was fine while everything worked; it stopped being fine for the unknown-directive diagnostic, which lands in the Problems panel and stays there. v1.4.1, v1.6.1, v1.6.2 and v1.7.3 each fixed a false positive in that one feature, and until now a user hitting an unanticipated one had no recourse short of uninstalling.
+
+  Four settings, all of them escape hatches rather than setup. Every default reproduces 1.7.5 exactly, so an install that never opens settings.json behaves identically:
+
+  | Setting | Default | For |
+  |---|---|---|
+  | `alpinejsTools.diagnostics.unknownDirective.severity` | `warning` | Turning the heuristic diagnostic down or off |
+  | `alpinejsTools.diagnostics.jsxShorthand.severity` | `warning` | The JSX shorthand diagnostic, separately |
+  | `alpinejsTools.extraDirectives` | `[]` | Third-party plugin directives |
+  | `alpinejsTools.workspaceScan.exclude` | `[]` | Keeping build output out of the scan |
+
+  Deliberately not settings: the supported language list, which is derived from what actually works and is not a user's problem, and toggles for hover and completions, which have no failure mode a toggle fixes — both are triggered by the cursor and neither accumulates anywhere you have to dismiss it.
+
+- **Severity enums rather than on/off booleans.** The useful value is `hint`, which keeps the check running and its Quick Fix reachable from the lightbulb while keeping the entry out of the Problems panel. A boolean would force the choice between living with a false positive and losing every true positive with it; `hint` is the setting most people hitting one actually want. `error`, `warning`, `information` and `off` are the rest.
+
+- **The two diagnostics are configured separately, because they fail differently.** The unknown-directive check is the heuristic one — it decides whether an `x-…` token is an attribute name at all, which is the judgement all four of those false-positive fixes were about. The JSX shorthand check makes no such judgement: `@click=` in a `.tsx` opening tag is a hard TypeScript syntax error (`TS1003`), so the extension is replacing a message that doesn't mention Alpine with one that does. Someone silencing the heuristic almost certainly still wants that. One setting covering both would have made the noisy check's problem into the useful check's problem.
+
+- **`alpinejsTools.extraDirectives`, for third-party plugins.** The known set is Alpine's core directives plus the six official plugin ones, which is a closed list this extension can maintain. Third-party plugins are not closed: they register whatever directive name they like, and a project using one got a permanent warning on correct code. There is no right answer to hardcode, which is the case a setting is actually for — as opposed to the ones above, which exist because a heuristic can be wrong.
+
+  Names are accepted with or without the `x-` prefix and with arguments or modifiers attached, all normalised to the base name the check compares (`x-clipboard`, `clipboard` and `x-clipboard:copy` all register `clipboard`). Listed names are exempt from the warning and join the "did you mean" candidates, so `x-clipboar` suggests `x-clipboard`.
+
+- **`Alpine.js Tools: Rescan Workspace`, the extension's first command.** `alpinejs.nvim` has had `:AlpineRescan` throughout; there was no VS Code equivalent, so when the v1.7.1 output-channel message reported that the scan had truncated, there was nothing to do about it. Now there is: configure `workspaceScan.exclude`, run the command, and the message tells you how many files were swept and how many components and stores came back. A truncated rescan says so and offers to open the output channel.
+
+  The command also covers what the file-system watcher can't see — a branch switched or dependencies installed outside the editor, or a workspace still indexing when the first sweep ran.
+
+### Changed
+
+- **The workspace scan can be repeated without leaking a watcher per run.** `initWorkspaceScanner` created the file-system watcher and the output channel inline, so wiring a command straight to it would have registered a duplicate of both on every invocation — a second watcher scanning every file twice, and a second output channel in the dropdown. The sweep is now separated from the one-time setup: `initWorkspaceScanner` still creates the watcher and channel exactly once, `rescanWorkspace` re-runs only the sweep. Overlapping rescans share one pass rather than racing.
+
+- **A rescan swaps the cache rather than clearing and refilling it.** Emptying the map first would have meant `$store` completions and go-to-definition returning nothing for the duration of the sweep — a rescan that makes things briefly worse before making them better. The new results are built in a separate map and assigned when complete, so lookups answer from the previous sweep's data throughout.
+
+- **The `workspaceScan.exclude` globs are applied to the watcher as well as the sweep.** `createFileSystemWatcher` takes no exclude pattern, so this is a hand-rolled matcher covering `**`, `*` and `?` — not brace alternation or character classes, which `findFiles` handles for the sweep but this does not. That asymmetry is safe in one direction only, and it is the direction it errs in: a pattern the matcher doesn't understand means the watcher re-scans a file the sweep skipped, so the cache holds slightly more than asked. It can never drop a file the sweep included.
+
+- **The file cap is still 2000 per extension and is still not configurable.** It was considered. The fix a project wants when it hits the cap is almost never a bigger number — it is to stop reading `dist/`, `vendor/` and bundled output that contain no registration worth finding. Excluding those brings the count under the cap instead of raising it, and makes the scan faster rather than slower. A cap setting invites 100000 and a slow window blamed on the extension; the output channel now points at `workspaceScan.exclude` instead.
+
+- **Diagnostics re-run on a settings change**, immediately rather than debounced, against every open document. Without it, turning a check off would leave its squiggles in place until each affected file happened to be edited, which reads as the setting not working. Turning both checks off for a document clears its entries rather than leaving the last set behind.
+
+- **Settings are read per-resource**, so a monorepo can turn a diagnostic off for one package in that folder's `.vscode/settings.json` and leave the rest of the workspace alone. `workspaceScan.exclude` is window-scoped instead, because the sweep is not per-file.
+
+### Notes
+
+- **Verified against the full suite: 308 tests passing.** Every existing test predates these settings and none was modified, which is the check that mattered — all of them exercise the defaults, so a green run is direct evidence that the default path is unchanged. That includes the v1.4.1, v1.5.0, v1.6.1, v1.6.2, v1.7.0 and v1.7.3 regression cases across all nine HTML-family suites and all three JSX ones.
+
+---
+
 ## [1.7.5] — 2026-08-09
 
 ### Added

@@ -2,7 +2,7 @@
   "name": "alpinejs-tools",
   "displayName": "Alpine.js Tools",
   "description": "Alpine.js IntelliSense, syntax highlighting, and tooling for VS Code",
-  "version": "1.7.5",
+  "version": "1.8.0",
   "publisher": "connorontheweb",
   "license": "MIT",
   "repository": {
@@ -55,10 +55,65 @@
     "onLanguage:astro",
     "onLanguage:javascript",
     "onLanguage:javascriptreact",
-    "onLanguage:typescriptreact"
+    "onLanguage:typescriptreact",
+    "onCommand:alpinejsTools.rescanWorkspace"
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "alpinejsTools.rescanWorkspace",
+        "title": "Rescan Workspace for Alpine Components",
+        "category": "Alpine.js Tools"
+      }
+    ],
+    "configuration": {
+      "title": "Alpine.js Tools",
+      "properties": {
+        "alpinejsTools.diagnostics.unknownDirective.severity": {
+          "type": "string",
+          "enum": ["error", "warning", "information", "hint", "off"],
+          "enumDescriptions": [
+            "Report as an error.",
+            "Report as a warning (default).",
+            "Report as information.",
+            "Underline in the editor only, without adding an entry to the Problems panel. The Quick Fix stays available.",
+            "Do not report at all."
+          ],
+          "default": "warning",
+          "markdownDescription": "Severity for the warning on `x-*` attributes that aren't recognised Alpine directives.\n\nSet to `hint` to keep the check and its Quick Fix while getting it out of the Problems panel. If the warning is firing on a valid directive from a third-party plugin, add the name to `#alpinejsTools.extraDirectives#` rather than turning the check off.",
+          "scope": "resource"
+        },
+        "alpinejsTools.diagnostics.jsxShorthand.severity": {
+          "type": "string",
+          "enum": ["error", "warning", "information", "hint", "off"],
+          "enumDescriptions": [
+            "Report as an error.",
+            "Report as a warning (default).",
+            "Report as information.",
+            "Underline in the editor only, without adding an entry to the Problems panel. The Quick Fix stays available.",
+            "Do not report at all."
+          ],
+          "default": "warning",
+          "markdownDescription": "Severity for the warning on Alpine's `@event` / `:attr` shorthands used as JSX attribute names in `.jsx`/`.tsx` files.\n\nThese are hard TypeScript syntax errors (`TS1003` / `TS1382`) whatever this is set to; turning it off only removes the message that explains why, and the Quick Fix that rewrites `@click` to `x-on:click`.",
+          "scope": "resource"
+        },
+        "alpinejsTools.extraDirectives": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "markdownDescription": "Additional directive names to treat as valid, for third-party Alpine plugins that this extension doesn't bundle documentation for.\n\nWrite them with or without the `x-` prefix — `x-clipboard` and `clipboard` are equivalent — and without arguments or modifiers. Names listed here are exempt from the unknown-directive warning and are offered as \"did you mean\" suggestions.\n\nAlpine's core directives and the six official plugin directives (`x-intersect`, `x-collapse`, `x-sort`, `x-mask`, `x-trap`, `x-anchor`) are always recognised and don't need listing.",
+          "scope": "resource"
+        },
+        "alpinejsTools.workspaceScan.exclude": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "markdownDescription": "Glob patterns to keep out of the workspace scan for `Alpine.data()` and `Alpine.store()` registrations — for example `[\"**/dist/**\", \"**/vendor/**\"]`.\n\n`node_modules` is always excluded and doesn't need listing. Use this when the output channel reports that the scan hit its 2000-file-per-extension limit: excluding build output brings the count under the limit, which is what restores the missing completions.\n\nAffects the initial scan and the **Alpine.js Tools: Rescan Workspace** command.",
+          "scope": "window"
+        }
+      }
+    },
     "grammars": [
       {
         "scopeName": "alpinejs.injection",

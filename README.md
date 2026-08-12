@@ -60,6 +60,7 @@ Any `x-*` attribute that isn't a recognised Alpine core or plugin directive is u
 - Only attribute names are checked. Hyphenated words in body text ("plotted along the x-axis"), `<script>` and `<style>` bodies, HTML comments, and the JavaScript around a JSX tag are never flagged.
 - Diagnostics are debounced 500 ms and cleared as you type.
 - **Quick Fix** — a lightbulb action offers `Replace with 'x-data'` in one click when a suggestion is available.
+- Using a third-party plugin? Add its directives to `alpinejsTools.extraDirectives` rather than turning the check off — see [Extension Settings](#extension-settings).
 
 ### Go to Definition for Alpine components
 
@@ -148,6 +149,61 @@ If you reach for a shorthand out of habit, you get a warning that says so — ``
 Everything is scoped to JSX tags. The extension only acts on text that is structurally inside a JSX opening tag, so ordinary code is untouched — `const diff = x-y > 0` isn't reported as an unknown directive, `{ 'color':theme.primary }` isn't read as an `x-bind` shorthand, `@Injectable()` isn't read as an `x-on` shorthand, and `$` doesn't summon the magic-property list. A React project that never uses Alpine sees nothing from this extension.
 
 Two things are deliberately out of scope. Markup inside tagged template literals (`` html`<div x-data="cart">` ``, as used by hono/html and lit-html) isn't recognised — there's no reliable way to tell an HTML template from any other string. And `x-data={{ open: false }}` isn't supported, because Alpine reads the attribute as a string, so an expression container holding a real object renders `[object Object]`. Use `x-data="{ open: false }"`, or `x-data={"{ open: false }"}` if you need the container form.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| **Alpine.js Tools: Rescan Workspace** | Re-sweeps the workspace for `Alpine.data()` and `Alpine.store()` registrations |
+
+A file-system watcher keeps the index current as you edit, so you rarely need this. It's for what the watcher can't see: a branch switched or dependencies installed outside the editor, a workspace still indexing when the window opened, or a scan that hit its file limit and has since had `alpinejsTools.workspaceScan.exclude` configured.
+
+The command reports how many files it swept and how many components and stores it found, and tells you if the limit was hit again.
+
+## Extension Settings
+
+Everything works with no setup. All four settings default to the behaviour you get without touching them — they're escape hatches, not configuration you're expected to do.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `alpinejsTools.diagnostics.unknownDirective.severity` | `warning` | Severity for unrecognised `x-*` attributes |
+| `alpinejsTools.diagnostics.jsxShorthand.severity` | `warning` | Severity for `@event` / `:attr` used as JSX attribute names |
+| `alpinejsTools.extraDirectives` | `[]` | Directive names from third-party plugins |
+| `alpinejsTools.workspaceScan.exclude` | `[]` | Globs to keep out of the workspace scan |
+
+Both severity settings accept `error`, `warning`, `information`, `hint`, or `off`.
+
+**`hint` is usually what you want instead of `off`.** It keeps the check running and the Quick Fix reachable from the lightbulb, but adds nothing to the Problems panel — so a check that's occasionally wrong stops filling up your panel without you losing it entirely.
+
+The two diagnostics are configured separately because they're different kinds of check. The unknown-directive one is a heuristic: it has to decide whether an `x-…` token is an attribute name at all. The JSX shorthand one isn't guessing — `@click=` in a `.tsx` opening tag is a hard TypeScript syntax error either way, and all the setting controls is whether you get a message explaining that, plus the fix that rewrites it.
+
+Settings are read per folder, so a monorepo can turn a check off for one package in that folder's `.vscode/settings.json` and keep it everywhere else.
+
+### Third-party plugin directives
+
+If a plugin registers a directive this extension doesn't know about, name it instead of turning the check off:
+
+```jsonc
+{
+  "alpinejsTools.extraDirectives": ["clipboard", "x-tooltip"]
+}
+```
+
+Write names with or without the `x-` prefix — both forms work, as do names with arguments or modifiers attached (`x-clipboard:copy` registers `clipboard`). Listed names stop being flagged and start appearing as "did you mean" suggestions. Alpine's core directives and the six official plugin directives are always recognised and don't need listing.
+
+### Excluding files from the workspace scan
+
+The scan reads up to 2000 files per extension looking for `Alpine.data()` and `Alpine.store()` registrations. If it hits that limit, the **Alpine.js Tools** output channel says so — some `$store` completions and Go to Definition targets will be missing.
+
+The fix is to stop scanning what has no registrations in it, which brings the count under the limit rather than raising it:
+
+```jsonc
+{
+  "alpinejsTools.workspaceScan.exclude": ["**/dist/**", "**/vendor/**"]
+}
+```
+
+`node_modules` is always excluded. Changing this re-runs the scan straight away. Supports `**`, `*` and `?`.
 
 ## Requirements
 

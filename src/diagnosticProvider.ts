@@ -20,6 +20,11 @@
  * `const diff = x-y > 0` in the JavaScript that makes up the rest of a JSX
  * document. htmlContext.ts and jsxContext.ts supply the regions.
  *
+ * Both diagnostics are configurable per-resource (see config.ts) and are
+ * reported at Warning severity unless told otherwise. They are configured
+ * separately because they fail differently — the unknown-directive check is
+ * the heuristic one, the JSX shorthand check is reporting a hard syntax error.
+ *
  * Diagnostics are debounced (500 ms) to avoid firing on every keystroke.
  */
 
@@ -28,6 +33,12 @@ import { ALPINE_LANGUAGES_SET, isJsxLanguage } from './constants';
 import { htmlTagRangesFor } from './htmlDocument';
 import { jsxTagRangesFor } from './jsxDocument';
 import { isInRanges, type TagRange } from './tagRanges';
+import {
+	affectsThisExtension,
+	extraDirectives,
+	jsxShorthandSeverity,
+	unknownDirectiveSeverity,
+} from './config';
 
 // ─── Known directive sets ─────────────────────────────────────────────────────
 
@@ -76,6 +87,7 @@ function expandShorthand(sigil: string, name: string): string {
 function buildShorthandDiagnostic(
 	document: vscode.TextDocument,
 	match: RegExpExecArray,
+	severity: vscode.DiagnosticSeverity,
 ): vscode.Diagnostic {
 	const [full, sigil, name] = match;
 	const long = expandShorthand(sigil, name);
@@ -86,7 +98,7 @@ function buildShorthandDiagnostic(
 		),
 		`\`${full}\` is not a valid JSX attribute name — Alpine's ` +
 			`${sigil} shorthand only works in HTML templates. Use \`${long}\` instead.`,
-		vscode.DiagnosticSeverity.Warning,
+		severity,
 	);
 	diag.source = 'Alpine.js Tools';
 	diag.code = 'jsx-shorthand';
@@ -105,19 +117,22 @@ function buildDiagnostic(
 	document: vscode.TextDocument,
 	match: RegExpExecArray,
 	base: string,
+	severity: vscode.DiagnosticSeverity,
+	extras: Set<string>,
 ): vscode.Diagnostic {
 	const start = document.positionAt(match.index);
 	const end = document.positionAt(match.index + match[0].length);
 	const range = new vscode.Range(start, end);
 
-	// Search both core and plugin directives; prefer shortest edit distance.
-	// Require at least a 2-character shared prefix (1-char for length-1 bases)
-	// to avoid false positives like x-modl → x-mask instead of x-model.
+	// Search core, plugin and user-configured directives; prefer shortest edit
+	// distance. Require at least a 2-character shared prefix (1-char for
+	// length-1 bases) to avoid false positives like x-modl → x-mask instead of
+	// x-model.
 	const prefixLen = Math.min(base.length, 2);
 	const basePrefix = base.slice(0, prefixLen);
 	let closest: string | undefined;
 	let bestDist = Infinity;
-	for (const d of ALL_DIRECTIVES) {
+	for (const d of [...ALL_DIRECTIVES, ...extras]) {
 		if (!d.startsWith(basePrefix)) { continue; }
 		const dist = Math.abs(d.length - base.length);
 		if (dist <= 2 && dist < bestDist) {
@@ -128,12 +143,12 @@ function buildDiagnostic(
 
 	const hint = closest
 		? ` Did you mean \`x-${closest}\`?`
-		: ` Valid directives: ${[...CORE_DIRECTIVES].join(', ')}.`;
+		: ` Valid directives: ${[...CORE_DIRECTIVES, ...extras].join(', ')}.`;
 
 	const diag = new vscode.Diagnostic(
 		range,
 		`Unknown Alpine.js directive 'x-${base}'.${hint}`,
-		vscode.DiagnosticSeverity.Warning,
+		severity,
 	);
 	diag.source = 'Alpine.js Tools';
 	diag.code = 'unknown-directive';
@@ -155,6 +170,22 @@ export function createAlpineDiagnosticProvider(
 	function diagnose(document: vscode.TextDocument): void {
 		if (!ALPINE_LANGUAGES_SET.has(document.languageId)) { return; }
 
+		const isJsx = isJsxLanguage(document.languageId);
+		const unknownSeverity = unknownDirectiveSeverity(document.uri);
+		// The shorthand check only ever runs in JSX, so don't read its setting
+		// (or compute tag ranges on its behalf) anywhere else.
+		const shorthandSeverity = isJsx
+			? jsxShorthandSeverity(document.uri)
+			: undefined;
+
+		// Both checks off for this document — clear anything a previous run
+		// left behind rather than leaving stale squiggles in the Problems
+		// panel, which is what turning them off is meant to achieve.
+		if (unknownSeverity === undefined && shorthandSeverity === undefined) {
+			collection.delete(document.uri);
+			return;
+		}
+
 		const text = document.getText();
 		const diagnostics: vscode.Diagnostic[] = [];
 
@@ -164,19 +195,31 @@ export function createAlpineDiagnosticProvider(
 		// in JSX the rest of the document is JavaScript (`const diff = x-y > 0`
 		// matches the directive regex exactly), in HTML it is prose, script
 		// bodies and comments (`the x-axis of the chart`).
-		const isJsx = isJsxLanguage(document.languageId);
 		const tagRanges: TagRange[] = isJsx
 			? jsxTagRangesFor(document)
 			: htmlTagRangesFor(document);
 
-		ALPINE_DIRECTIVE_RE.lastIndex = 0;
-		let match: RegExpExecArray | null;
+		if (unknownSeverity !== undefined) {
+			// Directives registered by third-party plugins, which the bundled
+			// list cannot know about. Empty unless configured, so the check is
+			// unchanged for anyone who hasn't set it.
+			const extras = extraDirectives(document.uri);
 
-		while ((match = ALPINE_DIRECTIVE_RE.exec(text)) !== null) {
-			if (!isInRanges(tagRanges, match.index)) { continue; }
-			const base = getBaseDirective(match[1]);
-			if (!CORE_DIRECTIVES.has(base) && !PLUGIN_DIRECTIVES.has(base)) {
-				diagnostics.push(buildDiagnostic(document, match, base));
+			ALPINE_DIRECTIVE_RE.lastIndex = 0;
+			let match: RegExpExecArray | null;
+
+			while ((match = ALPINE_DIRECTIVE_RE.exec(text)) !== null) {
+				if (!isInRanges(tagRanges, match.index)) { continue; }
+				const base = getBaseDirective(match[1]);
+				if (
+					!CORE_DIRECTIVES.has(base) &&
+					!PLUGIN_DIRECTIVES.has(base) &&
+					!extras.has(base)
+				) {
+					diagnostics.push(
+						buildDiagnostic(document, match, base, unknownSeverity, extras),
+					);
+				}
 			}
 		}
 
@@ -185,12 +228,12 @@ export function createAlpineDiagnosticProvider(
 		// reports `TS1003 Identifier expected` pointing at the `@`, which says
 		// nothing about Alpine and offers no way forward. Name the actual
 		// problem and let the code action rewrite it to the long form.
-		if (isJsx) {
+		if (shorthandSeverity !== undefined) {
 			ALPINE_SHORTHAND_RE.lastIndex = 0;
 			let sh: RegExpExecArray | null;
 			while ((sh = ALPINE_SHORTHAND_RE.exec(text)) !== null) {
 				if (!isInRanges(tagRanges, sh.index)) { continue; }
-				diagnostics.push(buildShorthandDiagnostic(document, sh));
+				diagnostics.push(buildShorthandDiagnostic(document, sh, shorthandSeverity));
 			}
 		}
 
@@ -216,6 +259,17 @@ export function createAlpineDiagnosticProvider(
 	}
 
 	context.subscriptions.push(
+		// Re-run against every open document when a setting changes. Without
+		// this, turning a diagnostic off leaves its squiggles in place until
+		// each affected file happens to be edited — which reads as the setting
+		// not working. Re-running is immediate rather than debounced: a
+		// settings change is a deliberate act, not a keystroke.
+		vscode.workspace.onDidChangeConfiguration(event => {
+			if (!affectsThisExtension(event)) { return; }
+			for (const doc of vscode.workspace.textDocuments) {
+				diagnose(doc);
+			}
+		}),
 		vscode.workspace.onDidOpenTextDocument(diagnose),
 		vscode.workspace.onDidChangeTextDocument(e =>
 			scheduleDiagnose(e.document),

@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import {
 	initWorkspaceScanner,
+	rescanWorkspace,
+	getOutputChannel,
 	getAlpineDataNames,
 	getAlpineDataLocations,
 	getAlpineStoreNames,
@@ -289,6 +291,45 @@ export function activate(context: vscode.ExtensionContext): void {
 
 	// Kick off workspace scan (non-blocking — results fill the cache async)
 	void initWorkspaceScanner(context);
+
+	// ── Rescan command ────────────────────────────────────────────────────────
+	// The watcher covers edits made inside VS Code, so this is for what it
+	// can't see: exclusions configured after a scan truncated, a branch
+	// switched outside the editor, or a workspace still indexing when the
+	// first sweep ran. Reports the outcome either way — a rescan that silently
+	// does nothing is indistinguishable from one that failed.
+	context.subscriptions.push(
+		vscode.commands.registerCommand('alpinejsTools.rescanWorkspace', async () => {
+			const summary = await vscode.window.withProgress(
+				{
+					location: vscode.ProgressLocation.Window,
+					title: 'Alpine.js Tools: rescanning workspace…',
+				},
+				() => rescanWorkspace(),
+			);
+
+			const components = getAlpineDataNames().length;
+			const stores = getAlpineStoreNames().length;
+			const found =
+				`${components} Alpine.data component${components !== 1 ? 's' : ''}, ` +
+				`${stores} store${stores !== 1 ? 's' : ''}`;
+
+			if (summary.truncated.length > 0) {
+				const openLog = 'Show Details';
+				const choice = await vscode.window.showWarningMessage(
+					`Alpine.js Tools: rescan finished (${found}), but the file limit ` +
+					`was reached for ${summary.truncated.join(', ')} — some ` +
+					'registrations are missing.',
+					openLog,
+				);
+				if (choice === openLog) { getOutputChannel()?.show(true); }
+			} else {
+				vscode.window.showInformationMessage(
+					`Alpine.js Tools: rescanned ${summary.fileCount} files — ${found}.`,
+				);
+			}
+		}),
+	);
 
 	// ── 0. Diagnostics — unknown Alpine directives ─────────────────────────────
 	createAlpineDiagnosticProvider(context);
