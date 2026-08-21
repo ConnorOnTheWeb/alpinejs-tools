@@ -129,7 +129,12 @@
           "text.html.liquid",
           "source.liquid",
           "text.html.jinja",
-          "source.astro"
+          "text.html.hugo",
+          "source.astro",
+          "source.templ",
+          "source.gohtml",
+          "source.gotemplate",
+          "source.go-template"
         ]
       },
       {
