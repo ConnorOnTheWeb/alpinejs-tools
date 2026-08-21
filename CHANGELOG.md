@@ -1,5 +1,49 @@
 # Changelog
 
+## [1.9.0] — 2026-08-21
+
+### Added
+
+- **Go support, across four language IDs.** `templ`, `gohtml`, `gotemplate` and `go-template` join the supported languages, and Hugo's layouts get the syntax highlighting they were missing. Filed as [#6](https://github.com/ConnorOnTheWeb/alpinejs-tools/issues/6), which asked only about `.templ` — the rest came out of checking what else in the Go ecosystem renders HTML, on the reasoning that the scanner work templ needed was the expensive part and the others were mostly manifest entries once it existed.
+
+- **Full templ support.** `.templ` files get everything the other markup languages get: hover documentation, magic-property and modifier completions, `x-data` property completions, unknown-directive diagnostics with quick fixes, go to definition, directive-name IntelliSense and snippets. Requires [a-h.templ](https://marketplace.visualstudio.com/items?itemName=a-h.templ) for the language itself.
+
+  templ is the first supported language that is code containing markup rather than markup containing code. A `.templ` file is Go source; its markup lives only inside `templ` blocks, with `script` and `css` blocks and ordinary Go functions around them. Astro's single leading `---` fence was enough to handle by starting the scan past it. Here the non-markup regions are interleaved with the markup ones, so the scan is restricted to the `templ` block bodies instead of skipping past a prefix.
+
+  What that prevents is not hypothetical. `if width<max && x-offset>0` is valid Go — a comparison chain — and to a tolerant markup scanner it is an opening tag named `max` whose attribute region contains `x-offset`, an unknown directive. The same shape appears in the JavaScript of a `script` block. Both are outside every `templ` block, so neither is scanned, and restricting rather than skipping gets the `script` and `css` blocks excluded for free.
+
+- **Hugo layouts get their syntax highlighting back.** Hugo needed no language ID: [budparr.language-hugo-vscode](https://marketplace.visualstudio.com/items?itemName=budparr.language-hugo-vscode) keeps the `html` language ID and only replaces the grammar, so hover, completions, diagnostics and snippets have worked in Hugo layouts all along. The highlighting inside `x-data="…"` did not, because that grammar's root scope is `text.html.hugo` and the injection never named it — the same class of miss as the `text.html.basic` vs `text.html.derivative` fix in v1.6.3 and the `source.liquid` one in v1.7.0. One scope in the injection selector, and the largest Go audience of the four is served.
+
+- **`html/template` and `text/template`, through `gohtml`, `gotemplate` and `go-template`.** The language IDs contributed by [casualjim.gotemplate](https://marketplace.visualstudio.com/items?itemName=casualjim.gotemplate), [karyan40024](https://marketplace.visualstudio.com/items?itemName=karyan40024.gotmpl-syntax-highlighter) and [jinliming2](https://marketplace.visualstudio.com/items?itemName=jinliming2.vscode-go-template), covering `.gohtml`, `.tmpl`, `.tpl`, `.gtpl`, `.html.tmpl` and the rest. These needed no scanner work at all: Go's `{{ … }}` delimiters have been in the template-construct skip list since Twig, Liquid, Jinja and Blade needed them, and Hugo's `{{< shortcode >}}` is skipped by the same rule — which is what stops the `<` inside one from opening a tag that swallows the line after it.
+
+- **`gohtml` support also recovers `.html` files that were never ours to lose.** `casualjim.gotemplate` declares `.html` among the extensions for its own `gohtml` language. A Go developer who installs it can have plain `.html` files change language ID out from under every extension registered for `html`, at which point this one silently stops doing anything in files it fully supported the day before. Registering for `gohtml` fixes that from this end; `"files.associations": {"*.html": "html"}` fixes it from the other. Both are now in the README.
+
+- **`.templ`, `.gohtml`, `.gotmpl` and `.tmpl` are swept for `Alpine.data()` and `Alpine.store()` registrations**, for the inline `<script>` block that is where a Go project with no JavaScript build step tends to put them. `.tpl` is deliberately left out: Helm uses it heavily for `_helpers.tpl` partials that never contain Alpine, and each extension costs its own `findFiles` sweep.
+
+### Changed
+
+- **The tag scan walks regions rather than the whole document.** `findHtmlTagRanges` now takes a list of markup regions and scans each one bounded, instead of walking from an offset to the end of the text. Every language but templ passes a single region spanning the document past any front matter, which is exactly what it did before; templ passes its `templ` block bodies. The unterminated-tag case that keeps completions working while you type `<div x-` now ends at the region boundary rather than the end of the file.
+
+- **Go raw strings are skipped inside a templ tag.** A templ attribute value can be a Go expression, and a raw string is how one containing quotes gets written. Without skipping backticks, the `<` in ``data-json={ `{"a": 1 < 2}` }`` rejects the whole tag and every directive beside it loses hover and completions. Found by running the scanner over 25 real `.templ` files from templ's own repository rather than over fixtures — templ's test data has exactly this shape, and nothing written by hand would have. Scoped to templ: no other supported language gives a backtick a meaning inside a tag, and treating a stray one as an opening quote there would swallow the rest of the tag.
+
+- **The scan cache is keyed by language as well as document and version.** Two languages can produce different ranges for identical text now that templ exists, and a document's language can change under it — through the language picker, or through an extension claiming the file extension, which is precisely what `casualjim.gotemplate` does to `.html`.
+
+- **Directive names and snippets reach the Go family through the completion provider**, the mechanism Astro and JSX already use, rather than through `contributes.snippets`. A declarative registration has no context field, so it would offer `x-data="{ }"` in the middle of a `.templ` file's Go code and in every Helm chart's `.tmpl`. The provider gates on being inside a markup tag. `.tmpl` and `.tpl` files holding YAML or shell therefore get nothing, which is the correct amount.
+
+### Notes
+
+- **398 tests passing, up from 308.** `gohtml`, `gotemplate` and `go-template` run the full HTML-family suite unmodified — 30 tests each, including every false-positive regression case back to v1.4.1. templ has its own suite, because bare markup is not a valid `.templ` document.
+
+- **The negative tests were checked for being vacuous.** The first draft of the templ fixture used `window.innerWidth<960` as its false positive, which never opens a region at all — a digit isn't a valid element-name start — so the assertion would have passed with the entire feature removed. Rerunning the scanner with the templ gating disabled, and confirming the bogus `" && x-offset"` range appears without it and disappears with it, is what makes those tests mean anything.
+
+- **The syntax highlighting was verified, not assumed.** An injection selector that silently matches nothing looks identical to one that works until someone opens a file. Each of the six new scopes was tokenised offline with `vscode-textmate` against the real published grammars — templ's, casualjim's, jinliming2's and Hugo's, pulled from the marketplace — confirming that `x-data="{ open: false }"` picks up the Alpine scopes in all of them, that `text.html.basic` still does, and that the `L:source.templ meta.tag` selector leaves Go code alone.
+
+- **Coverage was measured against real templ code.** Across 25 `.templ` files from the templ repository, the region-restricted scan finds 209 attribute regions against 210 tag-shaped tokens in the text — the one difference being a `<tag>` written inside a Go raw string, which is not markup and correctly gets none.
+
+- **Deliberately not supported.** gomponents and htmgo build HTML from Go function calls: there is no markup file and no attribute string, so there is nothing to highlight or complete regardless of interest. quicktemplate, Jet and Plush are all under 3.5k stars with little or no maintained tooling. pongo2 renders `.html` files, which are already covered.
+
+---
+
 ## [1.8.0] — 2026-08-12
 
 ### Added

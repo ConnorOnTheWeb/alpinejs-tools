@@ -31,7 +31,41 @@
 export const HTML_LANGUAGES = [
 	'html', 'ejs', 'php', 'twig', 'nunjucks', 'blade', 'liquid', 'jinja-html',
 	'astro',
+	'templ', 'gohtml', 'gotemplate', 'go-template',
 ] as const;
+
+/**
+ * The Go family, and which extension owns each ID.
+ *
+ * - `templ` — a-h.templ, for `.templ`. The odd one out: a `.templ` file is Go
+ *   source with markup embedded in its `templ` blocks, not markup with a
+ *   template layer, so the tag scan is restricted to those blocks. See
+ *   `templMarkupRegions` in htmlContext.ts.
+ * - `gohtml` — casualjim.gotemplate, for `.gohtml` / `.html.tmpl` and, unless
+ *   the user overrides it, `.html` itself. Plain `html/template` markup.
+ * - `gotemplate` — casualjim.gotemplate and karyan40024, for `.tmpl` / `.tpl`.
+ * - `go-template` — jinliming2.vscode-go-template, for `.gtpl` / `.go.tmpl`.
+ *
+ * The last two also cover `.tmpl`/`.tpl` files holding YAML, Helm charts or
+ * shell rather than markup. Nothing is offered there: every provider is gated
+ * on being inside a markup tag, and those files have none.
+ *
+ * Hugo needs nothing here. budparr.language-hugo-vscode keeps the language ID
+ * as `html`, so Hugo layouts are already served by the `html` registration —
+ * it only replaces the grammar, which is a syntax-highlighting concern handled
+ * by the `text.html.hugo` entry in syntaxes/alpine-injection.tmLanguage.json.
+ *
+ * Go's `{{ … }}` and `{{% … %}}` delimiters needed no work either: they were
+ * already in `TEMPLATE_CONSTRUCTS` for Twig, Liquid, Jinja and Blade, and
+ * Hugo's `{{< shortcode >}}` is skipped by the same rule — which is what stops
+ * the `<` inside one from opening a bogus tag.
+ */
+export const GO_LANGUAGES = [
+	'templ', 'gohtml', 'gotemplate', 'go-template',
+] as const;
+
+/** The language ID contributed by a-h.templ for `.templ` files. */
+export const TEMPL_LANGUAGE = 'templ';
 
 /**
  * Languages whose documents are JavaScript/TypeScript that may contain JSX.
@@ -61,3 +95,17 @@ export const JSX_LANGUAGES_SET = new Set<string>(JSX_LANGUAGES);
 export function isJsxLanguage(languageId: string): boolean {
 	return JSX_LANGUAGES_SET.has(languageId);
 }
+
+/**
+ * Markup languages whose attribute-name completions and snippets have to come
+ * from attributeCompletionProvider.ts rather than from package.json.
+ *
+ * `contributes.html/customData` is read only by VS Code's own HTML language
+ * service, which serves none of these, and `contributes.snippets` has no
+ * context field — so a declarative registration would offer `x-data="{ }"` in
+ * the middle of Astro's TypeScript frontmatter, a `.templ` file's Go code, or
+ * a Helm chart's YAML. The provider gates on being inside a tag instead.
+ */
+export const PROVIDER_SNIPPET_LANGUAGES = [
+	'astro', ...GO_LANGUAGES,
+] as const;

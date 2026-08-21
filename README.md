@@ -1,6 +1,6 @@
 # Alpine.js Tools
 
-The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja2, Astro, and JSX/TSX.
+The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja2, Astro, Go (templ, Hugo, html/template), and JSX/TSX.
 
 [![VS Marketplace](https://vsmarketplacebadges.dev/version/connorontheweb.alpinejs-tools.svg)](https://marketplace.visualstudio.com/items?itemName=connorontheweb.alpinejs-tools) [![License](https://img.shields.io/github/license/connorontheweb/alpinejs-tools)](https://github.com/connorontheweb/alpinejs-tools/blob/main/LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
@@ -37,7 +37,7 @@ Type `$` inside any Alpine expression to get completions for all Alpine magic pr
 
 After `$refs.` — completions list every `x-ref` name declared in the current file.
 
-After `$store.` — completions list every `Alpine.store('name', ...)` registration found in workspace JS/JSX/TS/TSX/HTML/Astro/Liquid/Jinja files (backed by a file-system watcher).
+After `$store.` — completions list every `Alpine.store('name', ...)` registration found in workspace JS/JSX/TS/TSX/HTML/Astro/Liquid/Jinja/templ/gohtml/tmpl files (backed by a file-system watcher).
 
 ### Modifier completions
 
@@ -64,7 +64,7 @@ Any `x-*` attribute that isn't a recognised Alpine core or plugin directive is u
 
 ### Go to Definition for Alpine components
 
-Press **F12** (or Ctrl+Click) anywhere inside `x-data="componentName"` to jump directly to the `Alpine.data('componentName', ...)` registration in your workspace JS/JSX/TS/TSX/HTML/Astro/Liquid/Jinja files. Multiple registration sites are all shown. Inline object literals (`x-data="{ open: false }"`) are intentionally skipped.
+Press **F12** (or Ctrl+Click) anywhere inside `x-data="componentName"` to jump directly to the `Alpine.data('componentName', ...)` registration in your workspace JS/JSX/TS/TSX/HTML/Astro/Liquid/Jinja/templ/gohtml/tmpl files. Multiple registration sites are all shown. Inline object literals (`x-data="{ open: false }"`) are intentionally skipped.
 
 ### Plugin directive completions
 
@@ -94,7 +94,7 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 ### Snippets
 
-42 snippets available in HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja-HTML, Astro, JavaScript, and JSX/TSX:
+42 snippets available in HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja-HTML, Astro, the Go template languages, JavaScript, and JSX/TSX:
 
 **Directive attributes** — `x-data`, `x-init`, `x-show`, `x-bind`, `x-on`, `x-text`, `x-html`, `x-model`, `x-for`, `x-transition`, `x-transition-classes` (all six `enter`/`leave` phases), `x-effect`, `x-ref`, `x-if`, `x-teleport`, `x-id`
 
@@ -110,7 +110,7 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 ## Supported languages
 
-`html` · `ejs` · `php` · `twig` · `nunjucks` · `blade` · `liquid` · `jinja-html` · `astro` · `javascript` · `javascriptreact` · `typescriptreact`
+`html` · `ejs` · `php` · `twig` · `nunjucks` · `blade` · `liquid` · `jinja-html` · `astro` · `templ` · `gohtml` · `gotemplate` · `go-template` · `javascript` · `javascriptreact` · `typescriptreact`
 
 Jinja2 templates that use the plain `.html` extension (the common Flask/Django case) are already covered by the `html` language support — no Jinja extension required for those files.
 
@@ -123,6 +123,37 @@ The `---` frontmatter block is skipped. It's TypeScript, not markup, and it's th
 Astro's own namespaced attributes are left alone: `client:load`, `transition:animate` and `set:html` are not read as Alpine's `:` shorthand, for the same reason `wire:model` isn't.
 
 One limitation. An expression container (`x-data={cart}`) holds TypeScript that Astro evaluates, so completions stay out of it, exactly as they do in JSX. Use `x-data="{ open: false }"` for anything you want IntelliSense inside. Alpine directives written inside an Astro expression (`{items.map((i) => <li x-text="i" />)}`) are recognised normally, since that really is markup.
+
+### Go
+
+Four Go template languages are supported, covering both halves of how Go renders HTML.
+
+**templ** (`.templ`) gets the full feature set. A `.templ` file is Go source, not markup with a template layer, so the tag scan is restricted to the bodies of your `templ` blocks — Go code, `script` blocks and `css` blocks are not markup and are left alone. Without that, a comparison chain like `if width<max && x-offset>0` reads as an opening tag with `x-offset` as an unknown directive inside it, which is exactly the kind of false positive that would have made the feature worse than nothing. Requires the official [templ extension](https://marketplace.visualstudio.com/items?itemName=a-h.templ) for the `.templ` language itself.
+
+```templ
+templ Card(product Product) {
+	<div x-data="{ open: false }">
+		<button @click="open = !open" :aria-expanded="open">{ product.Name }</button>
+		<div x-show="open" x-transition>{ product.Description }</div>
+	</div>
+}
+```
+
+Attribute values that are Go expressions are handled, including raw strings — a backtick string keeps its `<` and `>` to itself rather than cutting the tag short, so the directives beside one still work:
+
+```templ
+<div data-json={ `{"a": 1 < 2}` } x-data="{ open: false }">
+```
+
+As in Astro and JSX, an expression container (`x-data={ cart }`) holds Go that templ evaluates, so completions stay out of it — write `x-data="{ open: false }"` for anything you want IntelliSense inside.
+
+**Hugo** needs nothing installed beyond Hugo's own extension. [Hugo Language and Syntax Support](https://marketplace.visualstudio.com/items?itemName=budparr.language-hugo-vscode) keeps the `html` language ID and only replaces the grammar, so layouts have always had the full feature set — but the syntax highlighting inside `x-data="…"` used to go missing, because the injection didn't name Hugo's `text.html.hugo` scope. It does now. Hugo's `{{< shortcode >}}` syntax is skipped along with `{{ … }}` actions, so the `<` inside one can't open a bogus tag.
+
+**`html/template` and `text/template`** are covered through `gohtml`, `gotemplate` and `go-template` — the language IDs contributed by [casualjim.gotemplate](https://marketplace.visualstudio.com/items?itemName=casualjim.gotemplate), [karyan40024](https://marketplace.visualstudio.com/items?itemName=karyan40024.gotmpl-syntax-highlighter) and [jinliming2](https://marketplace.visualstudio.com/items?itemName=jinliming2.vscode-go-template) for `.gohtml`, `.tmpl`, `.tpl`, `.gtpl` and friends. Go's `{{ … }}` delimiters were already handled, since Twig, Liquid, Jinja and Blade share them.
+
+Worth knowing if your `.html` files ever stopped getting Alpine support: `casualjim.gotemplate` claims the `.html` extension for its own `gohtml` language, which changes the language ID out from under every extension registered for `html`. Supporting `gohtml` fixes that from this end. Setting `"files.associations": {"*.html": "html"}` fixes it from the other.
+
+`.tmpl` and `.tpl` also hold YAML, Helm charts and shell in plenty of Go projects. Nothing is offered in those: every feature is gated on being inside a markup tag, and a Helm values template has none.
 
 ### JSX and TSX
 

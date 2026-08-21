@@ -47,20 +47,38 @@ const MAX_SCANNED_LENGTH = 2_000_000;
  *
  * `getText` is a callback rather than a string so that a cache hit doesn't pay
  * for materialising the document text it isn't going to read.
+ *
+ * The language ID takes part in the key as well as being passed to the scan.
+ * A document's language can be changed under it (the language picker, or an
+ * extension claiming the file extension), and templ's ranges are not the same
+ * as `html`'s for the same text.
  */
 export function createRangeCache(
-	scan: (text: string) => TagRange[],
-): (key: string, version: number, getText: () => string) => TagRange[] {
+	scan: (text: string, languageId: string) => TagRange[],
+): (
+	key: string,
+	version: number,
+	getText: () => string,
+	languageId?: string,
+) => TagRange[] {
 	let cacheKey: string | undefined;
 	let cacheVersion = -1;
+	let cacheLanguage: string | undefined;
 	let cacheRanges: TagRange[] = [];
 
-	return (key, version, getText) => {
-		if (key === cacheKey && version === cacheVersion) { return cacheRanges; }
+	return (key, version, getText, languageId = '') => {
+		if (
+			key === cacheKey
+			&& version === cacheVersion
+			&& languageId === cacheLanguage
+		) {
+			return cacheRanges;
+		}
 		const text = getText();
 		cacheKey = key;
 		cacheVersion = version;
-		cacheRanges = text.length > MAX_SCANNED_LENGTH ? [] : scan(text);
+		cacheLanguage = languageId;
+		cacheRanges = text.length > MAX_SCANNED_LENGTH ? [] : scan(text, languageId);
 		return cacheRanges;
 	};
 }

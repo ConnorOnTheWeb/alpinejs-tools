@@ -6,9 +6,12 @@ const EXTENSION_ID = 'connorontheweb.alpinejs-tools';
 // Kept in sync with src/constants.ts. The two families are exercised by
 // separate suites below: the shorthand-related tests only apply to the HTML
 // family, since `@click` / `:class` are syntax errors in JSX.
+// `templ` is deliberately absent: its markup lives inside `templ` blocks, so
+// the bare-markup fixtures below aren't valid templ documents. It has its own
+// suite further down.
 const HTML_LANGUAGES = [
 	'html', 'ejs', 'php', 'twig', 'nunjucks', 'blade', 'liquid', 'jinja-html',
-	'astro',
+	'astro', 'gohtml', 'gotemplate', 'go-template',
 ] as const;
 
 const JSX_LANGUAGES = ['javascript', 'javascriptreact', 'typescriptreact'] as const;
@@ -818,6 +821,206 @@ suite('Language: astro (Astro-specific)', () => {
 			diags.length,
 			0,
 			`[astro] Expected no Alpine diagnostics for markup inside a frontmatter string, got: ${diags.map(d => d.message).join('; ')}`,
+		);
+	});
+});
+
+// ─── Go: templ ────────────────────────────────────────────────────────────────
+
+// A .templ file is Go source with markup inside its `templ` blocks, so this
+// fixture puts a directive typo in the markup and two Alpine-shaped false
+// positives outside it.
+//
+// `width<max && x-offset>0` is ordinary Go: a comparison chain whose `<` and
+// `>` bracket something the tag scan would otherwise read as an attribute
+// region, with `x-offset` — a valid Go subtraction — sitting inside it looking
+// exactly like an unknown directive. The same trick appears in the `script`
+// block, which holds JavaScript rather than markup. Neither is inside a
+// `templ` block, so neither is scanned.
+const TEMPL_CONTENT = `
+package views
+
+func visible(width, max, x, offset int) bool {
+	return width<max && x-offset>0
+}
+
+templ Card(open bool) {
+	<div x-data="{ open: false }">
+		<button @click="open = !open" :aria-expanded="open">Toggle</button>
+		<div x-show="open" x-transition></div>
+		<span x-dat="count"></span>
+		if open {
+			<p>Shown</p>
+		}
+	</div>
+}
+
+script hydrate() {
+	if (width<max && x-margin>0) {
+		console.log("narrow");
+	}
+}
+`.trim();
+
+suite('Language: templ (Go)', () => {
+	suiteSetup(async () => {
+		const ext = vscode.extensions.getExtension(EXTENSION_ID);
+		await ext?.activate();
+	});
+
+	test('Directives inside a templ block resolve', async () => {
+		const doc = await openDoc('templ', TEMPL_CONTENT);
+		const text = await hoverTextAt(doc, TEMPL_CONTENT.indexOf('x-show') + 2);
+
+		assert.ok(
+			text.includes('x-show'),
+			`[templ] Expected x-show documentation inside a templ block, got: ${text}`,
+		);
+	});
+
+	test('The @click shorthand resolves inside a templ block', async () => {
+		const doc = await openDoc('templ', TEMPL_CONTENT);
+		const text = await hoverTextAt(doc, TEMPL_CONTENT.indexOf('@click') + 3);
+
+		assert.ok(
+			text.includes('shorthand for'),
+			`[templ] Expected the Alpine shorthand hover, got: ${text}`,
+		);
+	});
+
+	test('Go code and script blocks outside the markup are not scanned', async () => {
+		const doc = await openDoc('templ', TEMPL_CONTENT);
+		const diags = await alpineDiagnosticsAfterDebounce(doc.uri);
+		const messages = diags.map(d => d.message);
+
+		assert.ok(
+			!messages.some(m => m.includes('x-offset')),
+			`[templ] Expected no diagnostic for the Go comparison chain, got: ${messages.join('; ')}`,
+		);
+		assert.ok(
+			!messages.some(m => m.includes('x-margin')),
+			`[templ] Expected no diagnostic inside the script block, got: ${messages.join('; ')}`,
+		);
+		assert.strictEqual(
+			diags.length,
+			1,
+			`[templ] Expected only the x-dat typo to be reported, got: ${messages.join('; ')}`,
+		);
+		assert.ok(
+			messages[0].includes('x-dat'),
+			`[templ] Expected the x-dat typo to be reported, got: ${messages[0]}`,
+		);
+	});
+
+	test('A Go raw string in an attribute expression does not end the tag', async () => {
+		// A templ attribute value can be a Go expression, and a raw string is
+		// how one containing quotes gets written. The `<` and `>` inside it are
+		// not markup: without the backtick skip they reject the whole tag, and
+		// the x-data beside them loses hover and completions. Taken from the
+		// shape in templ's own test data (cmd/templ/.../templates.templ).
+		const content = [
+			'package views',
+			'',
+			'templ Card() {',
+			'\t<div data-json={ `{"a": 1 < 2, "b": 3 > 2}` } x-data="{ open: false }">',
+			'\t</div>',
+			'}',
+		].join('\n');
+		const doc = await openDoc('templ', content);
+		const text = await hoverTextAt(doc, content.indexOf('x-data') + 2);
+
+		assert.ok(
+			text.includes('x-data'),
+			`[templ] Expected x-data to survive a raw string in the same tag, got: ${text}`,
+		);
+	});
+
+	test('Directive names complete inside a templ tag', async () => {
+		const content = 'package views\n\ntempl Card() {\n\t<div x-></div>\n}';
+		const doc = await openDoc('templ', content);
+		const items = await completionsAt(doc, content.indexOf('<div x-') + 7);
+		const directives = items.filter(i => i.detail === 'Alpine.js directive');
+
+		assert.ok(
+			labelsOf(directives).includes('x-data'),
+			`[templ] Expected an x-data directive completion, got: ${labelsOf(directives).join(', ')}`,
+		);
+	});
+
+	test('Directive names are not offered in the Go region', async () => {
+		// The gating an ungated `contributes.snippets` registration could not
+		// do: most of a .templ file is Go, not markup.
+		const content = 'package views\n\nvar x-\n\ntempl Card() {\n\t<div></div>\n}';
+		const doc = await openDoc('templ', content);
+		const items = await completionsAt(doc, content.indexOf('var x-') + 6);
+		const directives = items.filter(i => i.detail === 'Alpine.js directive');
+
+		assert.strictEqual(
+			directives.length,
+			0,
+			`[templ] Expected no directive completions in Go code, got: ${labelsOf(directives).join(', ')}`,
+		);
+	});
+
+	test('A templ block that is still being typed still completes', async () => {
+		// No closing brace yet, so the block has no end to scan up to. The
+		// region runs to the end of the document rather than being dropped.
+		const content = 'package views\n\ntempl Card() {\n\t<div x-';
+		const doc = await openDoc('templ', content);
+		const items = await completionsAt(doc, content.length);
+		const directives = items.filter(i => i.detail === 'Alpine.js directive');
+
+		assert.ok(
+			labelsOf(directives).includes('x-data'),
+			`[templ] Expected completions in an unclosed templ block, got: ${labelsOf(directives).join(', ')}`,
+		);
+	});
+});
+
+// ─── Go: html/template ────────────────────────────────────────────────────────
+
+// Go's `{{ … }}` actions and Hugo's `{{< … >}}` shortcodes both put characters
+// the tag scan cares about — including a bare `<` — where markup would
+// otherwise be. Both are skipped by the template-construct rule that Twig,
+// Liquid, Jinja and Blade already use, which is why the Go family needed no
+// scanner work of its own. This pins that.
+const GO_TEMPLATE_CONTENT = `
+<div x-data="{ open: false }" {{ if .Disabled }}disabled{{ end }}>
+  {{< figure src="a.png" >}}
+  <button @click="open = !open">Toggle</button>
+  <span x-dat="count"></span>
+</div>
+`.trim();
+
+suite('Language: gohtml (Go template actions)', () => {
+	suiteSetup(async () => {
+		const ext = vscode.extensions.getExtension(EXTENSION_ID);
+		await ext?.activate();
+	});
+
+	test('A directive beside a {{ if }} action still resolves', async () => {
+		const doc = await openDoc('gohtml', GO_TEMPLATE_CONTENT);
+		const text = await hoverTextAt(doc, GO_TEMPLATE_CONTENT.indexOf('x-data') + 2);
+
+		assert.ok(
+			text.includes('x-data'),
+			`[gohtml] Expected x-data documentation beside a Go action, got: ${text}`,
+		);
+	});
+
+	test('A Hugo shortcode does not open a bogus tag region', async () => {
+		const doc = await openDoc('gohtml', GO_TEMPLATE_CONTENT);
+		const diags = await alpineDiagnosticsAfterDebounce(doc.uri);
+		const messages = diags.map(d => d.message);
+
+		assert.strictEqual(
+			diags.length,
+			1,
+			`[gohtml] Expected only the x-dat typo to be reported, got: ${messages.join('; ')}`,
+		);
+		assert.ok(
+			messages[0].includes('x-dat'),
+			`[gohtml] Expected the x-dat typo to be reported, got: ${messages[0]}`,
 		);
 	});
 });

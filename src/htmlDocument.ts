@@ -10,9 +10,11 @@ import * as vscode from 'vscode';
 import { findHtmlTagRanges } from './htmlContext';
 import { createRangeCache, isInRanges, type TagRange } from './tagRanges';
 
-const markupRanges = createRangeCache(text => findHtmlTagRanges(text));
+const markupRanges = createRangeCache(
+	(text, languageId) => findHtmlTagRanges(text, { languageId }),
+);
 const rangesWithComments = createRangeCache(
-	text => findHtmlTagRanges(text, { includeComments: true }),
+	(text, languageId) => findHtmlTagRanges(text, { languageId, includeComments: true }),
 );
 
 /**
@@ -24,6 +26,7 @@ export function htmlTagRangesFor(document: vscode.TextDocument): TagRange[] {
 		document.uri.toString(),
 		document.version,
 		() => document.getText(),
+		document.languageId,
 	);
 }
 
@@ -45,6 +48,7 @@ export function isInsideHtmlTagAt(
 		document.uri.toString(),
 		document.version,
 		() => document.getText(),
+		document.languageId,
 	);
 	return isInRanges(ranges, document.offsetAt(position));
 }

@@ -2,7 +2,7 @@
   "name": "alpinejs-tools",
   "displayName": "Alpine.js Tools",
   "description": "Alpine.js IntelliSense, syntax highlighting, and tooling for VS Code",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "publisher": "connorontheweb",
   "license": "MIT",
   "repository": {
@@ -40,7 +40,13 @@
     "tsx",
     "react",
     "kitajs",
-    "astro"
+    "astro",
+    "go",
+    "golang",
+    "templ",
+    "gohtml",
+    "hugo",
+    "htmx"
   ],
   "icon": "images/alpinejs-tools.png",
   "activationEvents": [
@@ -53,6 +59,10 @@
     "onLanguage:liquid",
     "onLanguage:jinja-html",
     "onLanguage:astro",
+    "onLanguage:templ",
+    "onLanguage:gohtml",
+    "onLanguage:gotemplate",
+    "onLanguage:go-template",
     "onLanguage:javascript",
     "onLanguage:javascriptreact",
     "onLanguage:typescriptreact",

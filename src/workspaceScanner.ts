@@ -26,10 +26,17 @@ import { CONFIG_SECTION, workspaceScanExclude } from './config';
  * Single source of truth for both the initial `findFiles` sweep and the
  * file-system watcher — they previously kept separate literal lists that had
  * to be edited in lockstep.
+ *
+ * The Go template extensions are here for registrations written in an inline
+ * `<script>` block, which is where a Go project without a JavaScript build
+ * step tends to put them. `.tpl` is deliberately left out: Helm charts use it
+ * heavily for `_helpers.tpl` partials that never contain Alpine, and each
+ * entry costs its own `findFiles` sweep.
  */
 const SCAN_EXTENSIONS = [
 	'js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs',
 	'html', 'liquid', 'jinja', 'jinja2', 'j2', 'astro',
+	'templ', 'gohtml', 'gotmpl', 'tmpl',
 ] as const;
 
 /**
