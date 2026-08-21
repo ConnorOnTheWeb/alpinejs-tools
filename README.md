@@ -1,6 +1,6 @@
 # Alpine.js Tools
 
-The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja2, Astro, Go (templ, Hugo, html/template), and JSX/TSX.
+The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja2, Astro, Go (templ, Hugo, html/template), Rust (Tera, Askama), and JSX/TSX.
 
 [![VS Marketplace](https://vsmarketplacebadges.dev/version/connorontheweb.alpinejs-tools.svg)](https://marketplace.visualstudio.com/items?itemName=connorontheweb.alpinejs-tools) [![License](https://img.shields.io/github/license/connorontheweb/alpinejs-tools)](https://github.com/connorontheweb/alpinejs-tools/blob/main/LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
@@ -154,6 +154,16 @@ As in Astro and JSX, an expression container (`x-data={ cart }`) holds Go that t
 Worth knowing if your `.html` files ever stopped getting Alpine support: `casualjim.gotemplate` claims the `.html` extension for its own `gohtml` language, which changes the language ID out from under every extension registered for `html`. Supporting `gohtml` fixes that from this end. Setting `"files.associations": {"*.html": "html"}` fixes it from the other.
 
 `.tmpl` and `.tpl` also hold YAML, Helm charts and shell in plenty of Go projects. Nothing is offered in those: every feature is gated on being inside a markup tag, and a Helm values template has none.
+
+### Rust
+
+Rust's server-rendered templates are covered, and most of them needed nothing.
+
+**Tera** — used by Rocket and Loco — is supported through the [Tera extension](https://marketplace.visualstudio.com/items?itemName=karunamurti.tera), which contributes the `html` language ID and its own `source.tera` grammar. So `.tera` files (and the `.html` files in a Tera project) have always had hover, completions, diagnostics and snippets; what was missing was the syntax highlighting inside `x-data="…"`, because the injection didn't name `source.tera`. It does now. Same shape as the Hugo fix above.
+
+**Askama and MiniJinja** need nothing at all. Their templates are `.html`, which the `html` support already covers, or `.jinja` / `.j2` / `.html.j2`, which [Better Jinja](https://marketplace.visualstudio.com/items?itemName=samuelcolvin.jinjahtml) maps to `jinja-html` — supported since v1.4.0.
+
+Two things are out of scope rather than merely unimplemented. [maud](https://github.com/lambda-fairy/maud) writes markup as a Rust macro with no angle brackets — `div data-index="12345" { }` — and every feature here is built on finding the attribute region between `<name` and `>`, so there is nothing to anchor to. Leptos `view!` and Yew `html!` do use real angle brackets inside `.rs` files, which would be tractable the way templ was, but both ship their own reactivity and are used instead of Alpine rather than alongside it.
 
 ### JSX and TSX
 

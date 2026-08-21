@@ -16,4 +16,3 @@ node_modules/
 
 # Editor local settings (keep .vscode/ tracked for shared launch/tasks config)
 .vscode/settings.json
-vsc-extension-quickstart.md

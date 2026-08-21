@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.9.1] — 2026-08-21
+
+### Added
+
+- **Tera templates get their syntax highlighting.** `.tera` files — and the `.html` files in a Rocket or Loco project — have had hover, completions, diagnostics, go to definition and snippets all along, because [karunamurti.tera](https://marketplace.visualstudio.com/items?itemName=karunamurti.tera) contributes the `html` language ID rather than one of its own. What was missing was the JavaScript highlighting inside `x-data="…"`, because that extension replaces the grammar with one rooted at `source.tera` and the injection never named it.
+
+  Exactly the Hugo case from v1.9.0, down to the structure of the grammar: `source.tera` includes `text.html.basic`, and an include reuses patterns without pushing the included grammar's scope onto the stack, so the existing targets could never match. One scope added, 22k installs of that extension served, and no code change — there was no language ID to register, because the language ID was already `html`.
+
+### Notes
+
+- **Found by researching Rust and concluding it was mostly already done.** Askama and MiniJinja need nothing: their templates are `.html`, or `.jinja` / `.j2` / `.html.j2`, which Better Jinja maps to `jinja-html`. The dedicated Askama extension has 40 installs, which is the tell that nobody is using a separate language ID for it. Tera was the one real gap in the ecosystem.
+
+- **Rust's macro-based markup is out of scope, not merely unimplemented.** maud has no angle brackets at all — `div data-index="12345" { }` — and every provider here is built on locating the attribute region between `<name` and `>`. Supporting it would mean a third context scanner beside the HTML and JSX ones. Leptos `view!` and Yew `html!` do use real angle brackets inside `.rs`, which would be tractable the way templ was, but both frameworks supply their own reactivity and are used instead of Alpine rather than with it.
+
+- **Verified by tokenizing, as in v1.9.0.** The real published Tera grammar, pulled from the marketplace and run through `vscode-textmate`: `x-data` and `@click` produce the Alpine scopes with `source.tera` in the selector and nothing without it. The nine other injection targets were re-checked in the same pass, since a malformed selector string would take all of them down together rather than just the new one. 398 tests still passing, unchanged — there is no code path here for them to cover.
+
+---
+
 ## [1.9.0] — 2026-08-21
 
 ### Added
