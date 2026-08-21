@@ -30,9 +30,25 @@
  */
 export const HTML_LANGUAGES = [
 	'html', 'ejs', 'php', 'twig', 'nunjucks', 'blade', 'liquid', 'jinja-html',
-	'astro',
+	'astro', 'handlebars',
 	'templ', 'gohtml', 'gotemplate', 'go-template',
 ] as const;
+
+/**
+ * `handlebars` is VS Code's own built-in language for `.hbs` / `.handlebars` /
+ * `.hjs`, so it needs no companion extension — unlike every other entry here.
+ *
+ * It needed no scanner work either. Handlebars expressions, block helpers,
+ * partials and comments all open with `{{`, which `TEMPLATE_CONSTRUCTS`
+ * already skips for Twig, Liquid, Jinja and Blade, and the language has no
+ * infix operators, so nothing in it produces a bare `<` outside markup.
+ *
+ * It was not already covered by `contributes.html/customData` despite VS
+ * Code's HTML language service activating on it. That was measured, not
+ * assumed: before this was added, asking for completions inside a `.hbs`
+ * opening tag returned one item, none of them Alpine's, and hovering `x-show`
+ * returned nothing at all.
+ */
 
 /**
  * The Go family, and which extension owns each ID.

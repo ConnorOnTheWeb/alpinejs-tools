@@ -1,6 +1,6 @@
 # Alpine.js Tools
 
-The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja2, Astro, Go (templ, Hugo, html/template), Rust (Tera, Askama), and JSX/TSX.
+The best Alpine.js developer experience for VS Code. Syntax highlighting, hover documentation, IntelliSense completions, and snippets - across HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja2, Handlebars, Astro, Go (templ, Hugo, html/template), Rust (Tera, Askama), and JSX/TSX.
 
 [![VS Marketplace](https://vsmarketplacebadges.dev/version/connorontheweb.alpinejs-tools.svg)](https://marketplace.visualstudio.com/items?itemName=connorontheweb.alpinejs-tools) [![License](https://img.shields.io/github/license/connorontheweb/alpinejs-tools)](https://github.com/connorontheweb/alpinejs-tools/blob/main/LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 
@@ -94,7 +94,7 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 ### Snippets
 
-42 snippets available in HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja-HTML, Astro, the Go template languages, JavaScript, and JSX/TSX:
+42 snippets available in HTML, EJS, PHP, Twig, Nunjucks, Blade, Liquid, Jinja-HTML, Handlebars, Astro, the Go template languages, JavaScript, and JSX/TSX:
 
 **Directive attributes** — `x-data`, `x-init`, `x-show`, `x-bind`, `x-on`, `x-text`, `x-html`, `x-model`, `x-for`, `x-transition`, `x-transition-classes` (all six `enter`/`leave` phases), `x-effect`, `x-ref`, `x-if`, `x-teleport`, `x-id`
 
@@ -110,9 +110,17 @@ Inside any other Alpine directive value (`x-show="…"`, `@click="…"`, etc.) �
 
 ## Supported languages
 
-`html` · `ejs` · `php` · `twig` · `nunjucks` · `blade` · `liquid` · `jinja-html` · `astro` · `templ` · `gohtml` · `gotemplate` · `go-template` · `javascript` · `javascriptreact` · `typescriptreact`
+`html` · `ejs` · `php` · `twig` · `nunjucks` · `blade` · `liquid` · `jinja-html` · `handlebars` · `astro` · `templ` · `gohtml` · `gotemplate` · `go-template` · `javascript` · `javascriptreact` · `typescriptreact`
 
 Jinja2 templates that use the plain `.html` extension (the common Flask/Django case) are already covered by the `html` language support — no Jinja extension required for those files.
+
+### Handlebars
+
+`.hbs`, `.handlebars` and `.hjs` files get the full feature set, and unlike every other language here they need nothing installed — `handlebars` is one of VS Code's own built-in languages. Expressions, block helpers, partials, triple-stashes and `{{!-- comments --}}` all open with `{{`, which is skipped the same way Twig's and Jinja's delimiters are, so a helper inside an opening tag (`<div x-data="{ open: false }" {{#if disabled}}disabled{{/if}}>`) doesn't disturb the directives beside it.
+
+The target here is server-rendered Handlebars — Express with `express-handlebars` or `hbs`, where Alpine is doing the client-side work because nothing else is.
+
+**One limitation, in Ember.** Ember's angle-bracket components take named arguments written `@title="Home"`, which is character-for-character Alpine's `@event` shorthand for `x-on:event`. The two are indistinguishable — `<MyComponent @click={{this.go}} />` in Ember and `<button @click="go()">` in Alpine are the same syntax — so hovering an Ember named argument shows Alpine's `x-on` documentation. Nothing is reported to the Problems panel and no diagnostic fires, so it stays a hover you asked for rather than a warning you didn't. Plain server-rendered Handlebars has no `@` attributes and is unaffected.
 
 ### Astro
 

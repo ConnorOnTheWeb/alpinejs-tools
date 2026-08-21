@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.10.0] — 2026-08-21
+
+### Added
+
+- **Handlebars support.** `.hbs`, `.handlebars` and `.hjs` files get the full feature set — hover documentation, magic-property and modifier completions, `x-data` property completions, unknown-directive diagnostics with quick fixes, go to definition, directive-name IntelliSense, snippets and syntax highlighting.
+
+  It is the first supported language that needs nothing installed alongside it. `handlebars` is one of VS Code's own built-in languages, so this works for every user on open rather than for the subset who also installed a companion extension. Every other entry in the list depends on one.
+
+  It also needed no scanner work. Expressions, block helpers, partials, triple-stashes and `{{!-- comments --}}` all open with `{{`, which `TEMPLATE_CONSTRUCTS` has skipped since Twig and Jinja needed it, and Handlebars has no infix operators, so nothing in the language puts a bare `<` outside markup. `<div x-data="{ open: false }" {{#if disabled}}disabled{{/if}}>` parses as one tag with the directive intact.
+
+- **The audience is server-rendered Handlebars** — Express with `express-handlebars` or `hbs`, which between them do roughly 640,000 npm downloads a week. That is the same shape that makes templ work: HTML assembled on the server, no client framework, Alpine doing the interactive parts because nothing else is.
+
+### Notes
+
+- **`html/customData` does not reach this language, and that was measured rather than assumed.** VS Code's HTML language service activates on `onLanguage:handlebars` as well as `onLanguage:html`, which is a good reason to expect the bundled attribute data to carry over for free. It does not: before this change, asking a `.hbs` document for completions inside an opening tag returned one item with nothing of Alpine's in it, and hovering `x-show` returned nothing at all. Handlebars was a complete gap, not a partial one. This is the check v1.7.5 learned to run for Astro, applied before writing the code rather than after.
+
+- **Ember named arguments are a known false positive.** Ember's angle-bracket components take arguments written `@title="Home"`, which is character-for-character Alpine's `@event` shorthand — `<MyComponent @click={{this.go}} />` and `<button @click="go()">` are the same syntax, so no rule can separate them without knowing the framework. Hovering an Ember named argument therefore shows Alpine's `x-on` documentation.
+
+  Verified that the blast radius stops there: the probe reported zero diagnostics for a component with two named arguments, so nothing lands in the Problems panel and nothing has to be dismissed. It is a hover you asked for, not a warning you didn't. Plain server-rendered Handlebars has no `@` attributes and is unaffected. A tag-name heuristic could suppress it — Ember components are capitalised, HTML elements are not — and is being left until someone reports wanting it, since the fix costs more than the symptom.
+
+- **428 tests passing, up from 398.** Handlebars runs the full HTML-family suite unmodified, including every false-positive regression case back to v1.4.1, plus three of its own covering block helpers inside a tag, partials, triple-stashes and comments. The highlighting was verified by tokenising VS Code's real bundled Handlebars grammar with `vscode-textmate` — `x-data` and `@click` pick up the Alpine scopes with a `{{#if}}` helper sitting between them — along with the nine other injection targets and the templ negative case in the same pass.
+
+- **Not done: Phoenix HEEx.** Researched alongside this and deliberately skipped. Roughly 34 repositories pair LiveView with Alpine against templ's 209; supporting it would need the tag scan to accept `<.link>` (a leading dot, which `NAME_START_RE` rejects) and a permanent exemption list for `:if`, `:for`, `:let` and `:key`, which are bare leading-colon attributes indistinguishable from Alpine's `:class` shorthand. LiveView also ships `Phoenix.LiveView.JS` for exactly the client-side toggles Alpine handles, and its JS-interop documentation never mentions Alpine. Worth revisiting if someone files for it, which is what made templ obviously worth doing.
+
+---
+
 ## [1.9.1] — 2026-08-21
 
 ### Added

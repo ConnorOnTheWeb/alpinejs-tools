@@ -11,7 +11,7 @@ const EXTENSION_ID = 'connorontheweb.alpinejs-tools';
 // suite further down.
 const HTML_LANGUAGES = [
 	'html', 'ejs', 'php', 'twig', 'nunjucks', 'blade', 'liquid', 'jinja-html',
-	'astro', 'gohtml', 'gotemplate', 'go-template',
+	'astro', 'handlebars', 'gohtml', 'gotemplate', 'go-template',
 ] as const;
 
 const JSX_LANGUAGES = ['javascript', 'javascriptreact', 'typescriptreact'] as const;
@@ -821,6 +821,70 @@ suite('Language: astro (Astro-specific)', () => {
 			diags.length,
 			0,
 			`[astro] Expected no Alpine diagnostics for markup inside a frontmatter string, got: ${diags.map(d => d.message).join('; ')}`,
+		);
+	});
+});
+
+// ─── Handlebars ───────────────────────────────────────────────────────────────
+
+// Every construct handlebars has that puts braces, a bang or a slash where the
+// tag scan is looking: a block helper inside an opening tag, a triple-stash
+// unescaped expression, a partial, and a comment. None is markup, all of them
+// open with `{{`, and the template-construct skip should step over each.
+// x-dat is an intentional typo to exercise the diagnostic provider.
+const HANDLEBARS_CONTENT = `
+<div x-data="{ open: false }" {{#if disabled}}disabled{{/if}}>
+  {{!-- a comment with a stray < and > in it --}}
+  {{> header title="Home"}}
+  <button @click="open = !open">{{{rawHtml}}}</button>
+  <span x-dat="count">{{count}}</span>
+</div>
+`.trim();
+
+suite('Language: handlebars (Handlebars-specific)', () => {
+	suiteSetup(async () => {
+		const ext = vscode.extensions.getExtension(EXTENSION_ID);
+		await ext?.activate();
+	});
+
+	test('A directive beside a {{#if}} block helper still resolves', async () => {
+		const doc = await openDoc('handlebars', HANDLEBARS_CONTENT);
+		const text = await hoverTextAt(doc, HANDLEBARS_CONTENT.indexOf('x-data') + 2);
+
+		assert.ok(
+			text.includes('x-data'),
+			`[handlebars] Expected x-data documentation beside a block helper, got: ${text}`,
+		);
+	});
+
+	test('Comments, partials and triple-stashes produce no false positives', async () => {
+		const doc = await openDoc('handlebars', HANDLEBARS_CONTENT);
+		const diags = await alpineDiagnosticsAfterDebounce(doc.uri);
+		const messages = diags.map(d => d.message);
+
+		assert.strictEqual(
+			diags.length,
+			1,
+			`[handlebars] Expected only the x-dat typo to be reported, got: ${messages.join('; ')}`,
+		);
+		assert.ok(
+			messages[0].includes('x-dat'),
+			`[handlebars] Expected the x-dat typo to be reported, got: ${messages[0]}`,
+		);
+	});
+
+	test('Directive names complete inside a handlebars tag', async () => {
+		// `html/customData` does not reach this language, despite VS Code's HTML
+		// language service activating on it — measured before this was added, by
+		// asking a .hbs document for completions and getting one item, none of
+		// them Alpine's. This is the check that the snippets contribution does.
+		const content = '<div x-></div>';
+		const doc = await openDoc('handlebars', content);
+		const items = await completionsAt(doc, content.indexOf('x-') + 2);
+
+		assert.ok(
+			labelsOf(items).includes('x-data'),
+			`[handlebars] Expected an x-data completion, got: ${labelsOf(items).join(', ')}`,
 		);
 	});
 });

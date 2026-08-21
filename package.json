@@ -2,7 +2,7 @@
   "name": "alpinejs-tools",
   "displayName": "Alpine.js Tools",
   "description": "Alpine.js IntelliSense, syntax highlighting, and tooling for VS Code",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "publisher": "connorontheweb",
   "license": "MIT",
   "repository": {
@@ -48,7 +48,10 @@
     "hugo",
     "htmx",
     "rust",
-    "tera"
+    "tera",
+    "handlebars",
+    "hbs",
+    "ember"
   ],
   "icon": "images/alpinejs-tools.png",
   "activationEvents": [
@@ -61,6 +64,7 @@
     "onLanguage:liquid",
     "onLanguage:jinja-html",
     "onLanguage:astro",
+    "onLanguage:handlebars",
     "onLanguage:templ",
     "onLanguage:gohtml",
     "onLanguage:gotemplate",
@@ -141,6 +145,7 @@
           "text.html.liquid",
           "source.liquid",
           "text.html.jinja",
+          "text.html.handlebars",
           "text.html.hugo",
           "source.tera",
           "source.astro",
@@ -171,7 +176,8 @@
       { "language": "nunjucks",   "path": "./snippets/alpine.code-snippets" },
       { "language": "blade",      "path": "./snippets/alpine.code-snippets" },
       { "language": "liquid",     "path": "./snippets/alpine.code-snippets" },
-      { "language": "jinja-html", "path": "./snippets/alpine.code-snippets" }
+      { "language": "jinja-html", "path": "./snippets/alpine.code-snippets" },
+      { "language": "handlebars",  "path": "./snippets/alpine.code-snippets" }
     ]
   },
   "scripts": {
